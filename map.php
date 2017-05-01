@@ -21,6 +21,8 @@
  | http://www.cacti.net/                                                   |
  +-------------------------------------------------------------------------+
 */
+// AIzaSyCpw0hNO2ZzIxKb9cTyrSPEN3ADvUTc5Xc
+// AIzaSyAr0rad39hJtQLiRoPqsTstFW9u8kl6PYA
 
 $guest_account = true;
 chdir('../../');
@@ -48,16 +50,11 @@ if ($hostname != '') {
 
 include(dirname(__FILE__) . "/general_header.php");
 
-$total_rows = db_fetch_cell("SELECT
-	COUNT(host.id)
-	FROM host, plugin_map_coordinate map
-	WHERE host.id=map.host_id
-	$sql_where");
-
 $sql_query = "SELECT host.id as 'id', 
 		host.hostname as 'hostname', map.lat as 'lat', map.lon as 'lon', map.address as 'address' 
-		FROM host, plugin_map_coordinate map
-		WHERE host.id=map.host_id
+		FROM host, plugin_map_coordinate map, plugin_map_host maphost
+		WHERE host.id=maphost.host_id
+		AND maphost.address_id=map.id
 		$sql_where 
 		ORDER BY host.id";
 
@@ -122,10 +119,10 @@ html_start_box("", "100%", $colors["header"], "3", "center", "");
       }
     </style>
 
-    <script src="https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/markerclusterer.js"></script>
-//    <script src="http://lslcact01.lausanne.ch/cacti/plugins/map/markerclusterer.js"></script>
+//    <script src="https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/markerclusterer.js"></script>
+    <script src="http://lslcact01.lausanne.ch/cacti/plugins/map/markerclusterer.js"></script>
 
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAr0rad39hJtQLiRoPqsTstFW9u8kl6PYA&callback=initMap"></script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=<?php print read_config_option('map_api_key')?>&callback=initMap"></script>
 	<script>
 	function initMap() {
         var center = new google.maps.LatLng(46.52, 6.64);

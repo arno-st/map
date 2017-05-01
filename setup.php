@@ -27,6 +27,7 @@ function plugin_map_install () {
 	api_plugin_register_hook('map', 'top_graph_header_tabs', 'map_show_tab', 'setup.php');
 	api_plugin_register_hook('map', 'draw_navigation_text', 'map_draw_navigation_text', 'setup.php');
 	api_plugin_register_hook('map', 'config_settings', 'map_config_settings', 'setup.php'); // personl settings info
+	api_plugin_register_hook('map', 'api_device_new', 'map_api_device_new', 'setup.php');
 	api_plugin_register_hook('map', 'utilities_action', 'map_utilities_action', 'setup.php');
 	api_plugin_register_hook('map', 'utilities_list', 'map_utilities_list', 'setup.php');
 
@@ -37,7 +38,8 @@ function plugin_map_install () {
 
 function plugin_map_uninstall () {
 	// Do any extra Uninstall stuff here
-	db_execute("DROP TABLE `plugin_map_coordinate`;");
+	db_execute("DROP TABLE IF EXISTS `plugin_map_coordinate`;");
+	db_execute("DROP TABLE IF EXISTS `plugin_map_host`;");
 }
 
 function plugin_map_check_config () {
@@ -204,13 +206,22 @@ function map_utilities_action ($action) {
 				$host['snmp_version'], $host['snmp_username'], $host['snmp_password'], 
 				$host['snmp_auth_protocol'], $host['snmp_priv_passphrase'], $host['snmp_priv_protocol'], 
 				$host['snmp_context'] ); 
-				
-				cacti_log("device: ".$host['hostname']." ".$snmp_location."\n", false, "MAP" );
+/*
+04/28/2017 09:51:14 AM - MAP: Poller[0] device: se-hdp-55.recolte.lausanne.ch Suisse;Lausanne;Rue Saint-Martin 33;0;Armoire 02.02
+
+04/28/2017 09:51:14 AM - MAP: Poller[0] Google Address: Rue+Saint-Martin+33,Lausanne,Suisse
+
+04/28/2017 09:51:14 AM - MAP: Poller[0] lati: 46.5251038 longi: 6.6371349
+"formatted_address" : "Rue Saint-Martin 33, 1005 Lausanne, Suisse",
+*/
+
+				cacti_log("device: ".$host['hostname']." ".$snmp_location, false, "MAP" );
+				// geocod it, many Google query but the address is the geocoded one
 				
 				// parse google map for geocoding
 				$snmp_location = str_replace( ",", ";", $snmp_location );
 				$address = explode( ';', $snmp_location ); // Suisse;Lausanne;Chemin de Pierre-de-Plan 4;-1;Local Telecom
-				if( count($address) > 3 ) {
+				if( count($address) >= 3 ) {
 					$location = $address[2]. "," .$address[1]. "," . $address[0];
 					$location = str_replace(' ', '+', $location );
 					$gpslocation = array();
@@ -219,13 +230,27 @@ function map_utilities_action ($action) {
 					} else if( $maptools == '1' ) {
 						$gpslocation = OpenStreetGeocode($location);
 					}
+					if($gpslocation == false ) continue; // in case of error just continue
+					
+					$gpslocation[2] = str_replace ("'", " ", $gpslocation[2]); // replace ' by space
+				cacti_log("adresse: ".$gpslocation[2], false, "MAP" );
+
+					// check if this adress is present into the plugin_map_coordinate
+					$address_id = db_fetch_cell("SELECT id FROM plugin_map_coordinate WHERE address='".sql_sanitize($gpslocation[2])."'" );
+					if( $address_id == 0) // record does not exist
+					{
+						// save to new table with id and location
+						$ret = db_execute("INSERT INTO plugin_map_coordinate (address, lat, lon) VALUES ('"
+						. sql_sanitize($gpslocation[2]) ."','"
+						. sql_sanitize($gpslocation[0]) . "', '"
+						. sql_sanitize($gpslocation[1]) . "')");
+					} 
+
+				    // and add  host to plugin_map_host_table
+					$address_id = db_fetch_cell("SELECT id FROM plugin_map_coordinate WHERE address='".sql_sanitize($gpslocation[2])."'" );
+					db_execute("REPLACE INTO plugin_map_host (host_id, address_id) VALUES (" .$host['id']. "," .$address_id. ")");
+
 					cacti_log("lati: ". $gpslocation[0]." longi: ".$gpslocation[1], false, "MAP");
-				// save to new table with id and location
-				$ret = db_execute("REPLACE INTO plugin_map_coordinate (host_id, address, lat, lon) VALUES ('"
-				. sql_sanitize($host['id']) ."',\""
-				. sql_sanitize($gpslocation[2]) ."\",'"
-				. sql_sanitize($gpslocation[0]) . "', '"
-				. sql_sanitize($gpslocation[1]) . "')");
 				} else cacti_log("Snmp location error: ".$snmp_location, false, "MAP");
 			}
 		}
@@ -258,19 +283,34 @@ function map_setup_table () {
 	include_once($config["library_path"] . "/database.php");
 
 	$data = array();
-	$data['columns'][] = array('name' => 'host_id', 'type' => 'mediumint(8)', 'NULL' => false, 'default' => '0');
+	$data['columns'][] = array('name' => 'id', 'type' => 'int(12)', 'NULL' => false, 'auto_increment' => true);
 	$data['columns'][] = array('name' => 'address', 'type' => 'varchar(150)', 'NULL' => false, 'default' => '');
 	$data['columns'][] = array('name' => 'lat', 'type' => 'float(10,6)', 'NULL' => false , 'default' => '0');
 	$data['columns'][] = array('name' => 'lon', 'type' => 'float(10,6)', 'NULL' => false, 'default' => '0');
 	$data['type'] = 'MyISAM';
+	$data['primary'] = 'id';
+	$data['keys'][] = array('name' => 'id', 'columns' => 'id');
 	$data['comment'] = 'Plugin map - Table of map hosts coordinate';
 	api_plugin_db_table_create('map', 'plugin_map_coordinate', $data);
+
+	$data = array();
+	$data['columns'][] = array('name' => 'host_id', 'type' => 'mediumint(8)', 'NULL' => false, 'default' => '0');
+	$data['columns'][] = array('name' => 'address_id', 'type' => 'int(12)', 'NULL' => false, 'default' => '0');
+	$data['type'] = 'MyISAM';
+	$data['primary'] = "host_id`,`address_id";
+	$data['comment'] = 'Plugin map - Table of GPS coordinate';
+	api_plugin_db_table_create('map', 'plugin_map_host', $data);
+	
+}
+
+function map_api_device_new() {
+	// device is saved, take the snmplocation to check with database
+	
 }
 
 function GoogleGeocode($address){
 	global $config;
 	$mapapikey = read_config_option('map_api_key');
-
 	//https://maps.googleapis.com/maps/api/geocode/json?address=4+chemin+pierre+de+plan,+Lausanne,+Suisse&key=AIzaSyAr0rad39hJtQLiRoPqsTstFW9u8kl6PYA
     // url encode the address
      
@@ -281,15 +321,15 @@ function GoogleGeocode($address){
     $resp_json = file_get_contents($url);
      
     // decode the json
-    $resp = json_decode($resp_json, true);
- 
+    $resp = json_decode($resp_json, true, 512 );
+
     // response status will be 'OK', if able to geocode given address 
     if($resp['status']=='OK'){
  
         // get the important data
         $lati = $resp['results'][0]['geometry']['location']['lat'];
         $longi = $resp['results'][0]['geometry']['location']['lng'];
-        $formatted_address = $resp['results'][0]['formatted_address'];
+        $formatted_address = utf8_decode($resp['results'][0]['formatted_address']);
          
         // verify if data is complete
         if($lati && $longi && $formatted_address){
@@ -311,6 +351,7 @@ function GoogleGeocode($address){
         }
          
     }else{
+		cacti_log("Google Geocoding error: ".$resp['status'], false, "MAP");
         return false;
     }
 }
