@@ -21,6 +21,9 @@
  | http://www.cacti.net/                                                   |
  +-------------------------------------------------------------------------+
 */
+// AIzaSyCpw0hNO2ZzIxKb9cTyrSPEN3ADvUTc5Xc
+// AIzaSyAr0rad39hJtQLiRoPqsTstFW9u8kl6PYA
+
 $guest_account = true;
 chdir('../../');
 include("./include/auth.php");
@@ -129,9 +132,6 @@ html_start_box("", "100%", $colors["header"], "3", "center", "");
           mapTypeId: google.maps.MapTypeId.ROADMAP
         });
 		
-        // Create an array of alphabetical characters used to label the markers.
-        var labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-
 		var markers = [];
 		
 
@@ -141,7 +141,7 @@ html_start_box("", "100%", $colors["header"], "3", "center", "");
 ?>
 			var marker = new google.maps.Marker( {
 				position: new google.maps.LatLng(<?php print $device['lat'];?>, <?php print $device['lon'];?>),
-				title: '<?php print $device['address'];?>'
+				title: '<?php print $device['hostname']. "\\n" . utf8_encode($device['address']);?>'
 			} );
 			markers.push(marker);
 <?php

@@ -114,7 +114,7 @@ function map_check_dependencies() {
 function plugin_map_version () {
 	return array(
 		'name'     => 'Map',
-		'version'  => '0.1',
+		'version'  => '0.2',
 		'longname' => 'Map Viewer',
 		'author'   => 'Arno Streuli',
 		'homepage' => 'http://cactiusers.org',
@@ -186,93 +186,137 @@ function map_draw_navigation_text ($nav) {
 }
 
 function map_utilities_action ($action) {
-	global $config;
-	$snmpsyslocation		 = ".1.3.6.1.2.1.1.6.0"; // system location
-	include_once($config["library_path"] . '/snmp.php');
-	$maptools = read_config_option('map_tools');
+	// get device list,  where snmp is active
+	$dbquery = db_fetch_assoc("SELECT id, hostname, snmp_community, 
+	snmp_version, snmp_username, snmp_password, snmp_port, snmp_timeout, disabled, availability_method, 
+	ping_method, ping_port, ping_timeout, ping_retries, snmp_auth_protocol, snmp_priv_passphrase, 
+	snmp_priv_protocol, snmp_context FROM host WHERE snmp_version > '0' ORDER BY id");
 
-	if ($action == 'map_rebuild') {
-	// rebuild the map table
-		// get device list, that are not disabled and where snmp is active
-		$dbquery = db_fetch_assoc("SELECT id, hostname, snmp_community, 
-		snmp_version, snmp_username, snmp_password, snmp_port, snmp_timeout, disabled, availability_method, 
-		ping_method, ping_port, ping_timeout, ping_retries, snmp_auth_protocol, snmp_priv_passphrase, 
-		snmp_priv_protocol, snmp_context FROM host WHERE snmp_version > '0' ORDER BY id");
+	if ( (sizeof($dbquery) > 0) && $action == 'map_rebuild' || $action == 'coordinate_rebuild'){
+		if ($action == 'map_rebuild') {
+		// rebuild the map address table
+			db_execute("TRUNCATE TABLE `plugin_map_coordinate`;");
+			db_execute("TRUNCATE TABLE `plugin_map_host`;");
 
-		if (sizeof($dbquery) > 0) {
+			foreach ($dbquery as $host) {
+				// snmp_get syslocation, and geocodit
+				$snmp_location = query_location ( $host );
+
+				// geocod it, many Google query but the address is the geocoded one
+				$gpslocation = geocod_address ( $snmp_location );
+				if( $gpslocation == false) 
+					continue;
+
+				// check if this adress is present into the plugin_map_coordinate
+				$address_id = db_fetch_cell("SELECT id FROM plugin_map_coordinate WHERE address='".sql_sanitize($gpslocation[2])."'" );
+				if( $address_id == 0) // record does not exist
+				{
+					// save to new table with id and location
+					$ret = db_execute("INSERT INTO plugin_map_coordinate (address, lat, lon) VALUES ('"
+					. sql_sanitize($gpslocation[2]) ."','"
+					. sql_sanitize($gpslocation[0]) . "', '"
+					. sql_sanitize($gpslocation[1]) . "')");
+				} 
+
+				   // and add  host to plugin_map_host_table
+				$address_id = db_fetch_cell("SELECT id FROM plugin_map_coordinate WHERE address='".sql_sanitize($gpslocation[2])."'" );
+				db_execute("REPLACE INTO plugin_map_host (host_id, address_id) VALUES (" .$host['id']. "," .$address_id. ")");
+
+				cacti_log("lati: ". $gpslocation[0]." longi: ".$gpslocation[1], false, "MAP");
+			}
+		} else if ($action == 'coordinate_rebuild') {
+			// Empty the table first
+			db_execute("TRUNCATE TABLE `plugin_map_host`;");
+
 			foreach ($dbquery as $host) {
 				// snmp_get syslocation
-				$snmp_location = cacti_snmp_get( $host['hostname'], $host['snmp_community'], $snmpsyslocation, 
-				$host['snmp_version'], $host['snmp_username'], $host['snmp_password'], 
-				$host['snmp_auth_protocol'], $host['snmp_priv_passphrase'], $host['snmp_priv_protocol'], 
-				$host['snmp_context'] ); 
-/*
-04/28/2017 09:51:14 AM - MAP: Poller[0] device: se-hdp-55.recolte.lausanne.ch Suisse;Lausanne;Rue Saint-Martin 33;0;Armoire 02.02
-
-04/28/2017 09:51:14 AM - MAP: Poller[0] Google Address: Rue+Saint-Martin+33,Lausanne,Suisse
-
-04/28/2017 09:51:14 AM - MAP: Poller[0] lati: 46.5251038 longi: 6.6371349
-"formatted_address" : "Rue Saint-Martin 33, 1005 Lausanne, Suisse",
-*/
-
-				cacti_log("device: ".$host['hostname']." ".$snmp_location, false, "MAP" );
+				$snmp_location = query_location ( $host );
 				// geocod it, many Google query but the address is the geocoded one
-				
-				// parse google map for geocoding
-				$snmp_location = str_replace( ",", ";", $snmp_location );
-				$address = explode( ';', $snmp_location ); // Suisse;Lausanne;Chemin de Pierre-de-Plan 4;-1;Local Telecom
-				if( count($address) >= 3 ) {
-					$location = $address[2]. "," .$address[1]. "," . $address[0];
-					$location = str_replace(' ', '+', $location );
-					$gpslocation = array();
-					if( $maptools == '0' ) {
-						$gpslocation = GoogleGeocode($location);
-					} else if( $maptools == '1' ) {
-						$gpslocation = OpenStreetGeocode($location);
-					}
-					if($gpslocation == false ) continue; // in case of error just continue
-					
-					$gpslocation[2] = str_replace ("'", " ", $gpslocation[2]); // replace ' by space
-				cacti_log("adresse: ".$gpslocation[2], false, "MAP" );
+				$gpslocation = geocod_address ( $snmp_location );
+				if( $gpslocation == false) 
+					continue;
 
-					// check if this adress is present into the plugin_map_coordinate
-					$address_id = db_fetch_cell("SELECT id FROM plugin_map_coordinate WHERE address='".sql_sanitize($gpslocation[2])."'" );
-					if( $address_id == 0) // record does not exist
-					{
-						// save to new table with id and location
-						$ret = db_execute("INSERT INTO plugin_map_coordinate (address, lat, lon) VALUES ('"
-						. sql_sanitize($gpslocation[2]) ."','"
-						. sql_sanitize($gpslocation[0]) . "', '"
-						. sql_sanitize($gpslocation[1]) . "')");
-					} 
+				// Find the address on the coordinate table
+				$address_id = db_fetch_cell("SELECT id FROM plugin_map_coordinate WHERE address='".sql_sanitize($gpslocation[2])."'" );
+				if( $address_id != 0 )
+					db_execute("INSERT INTO plugin_map_host (host_id, address_id) VALUES (" .$host['id']. "," .$address_id. ")");
 
-				    // and add  host to plugin_map_host_table
-					$address_id = db_fetch_cell("SELECT id FROM plugin_map_coordinate WHERE address='".sql_sanitize($gpslocation[2])."'" );
-					db_execute("REPLACE INTO plugin_map_host (host_id, address_id) VALUES (" .$host['id']. "," .$address_id. ")");
-
-					cacti_log("lati: ". $gpslocation[0]." longi: ".$gpslocation[1], false, "MAP");
-				} else cacti_log("Snmp location error: ".$snmp_location, false, "MAP");
+				cacti_log("host: " .$host['id']. " address: " .$address_id, false, "MAP");
 			}
 		}
-
 		include_once('./include/top_header.php');
 		utilities();
 		include_once('./include/bottom_footer.php');
-	}
+	} 
 	return $action;
+}
+
+// query the snmp location from the host, host is an array with:
+/* id, hostname, snmp_community, 
+		snmp_version, snmp_username, snmp_password, snmp_port, snmp_timeout, disabled, availability_method, 
+		ping_method, ping_port, ping_timeout, ping_retries, snmp_auth_protocol, snmp_priv_passphrase, 
+		snmp_priv_protocol, snmp_context */
+function query_location( $host ) {
+	global $config;
+	$snmpsyslocation		 = ".1.3.6.1.2.1.1.6.0"; // system location
+	include_once($config["library_path"] . '/snmp.php');
+
+	$snmp_location = cacti_snmp_get( $host['hostname'], $host['snmp_community'], $snmpsyslocation, 
+		$host['snmp_version'], $host['snmp_username'], $host['snmp_password'], 
+		$host['snmp_auth_protocol'], $host['snmp_priv_passphrase'], $host['snmp_priv_protocol'], 
+		$host['snmp_context'] ); 
+
+cacti_log("device: ".$host['hostname']." ".$snmp_location, false, "MAP" );
+
+	return $snmp_location;
+}
+
+// return the full address, lat, lon
+function geocod_address( $snmp_location ) {
+	$maptools = read_config_option('map_tools');
+
+	// parse google map for geocoding
+	$snmp_location = str_replace( ",", ";", $snmp_location );
+	$address = explode( ';', $snmp_location ); // Suisse;Lausanne;Chemin de Pierre-de-Plan 4;-1;Local Telecom
+	if( count($address) >= 3 ) {
+		$location = $address[2]. "," .$address[1]. "," . $address[0];
+		$location = str_replace(' ', '+', $location );
+		$gpslocation = array();
+		if( $maptools == '0' ) {
+			$gpslocation = GoogleGeocode($location);
+		} else if( $maptools == '1' ) {
+			$gpslocation = OpenStreetGeocode($location);
+		}
+		if($gpslocation != false ){
+			$gpslocation[2] = str_replace ("'", " ", $gpslocation[2]); // replace ' by space
+cacti_log("adresse: ".$gpslocation[2], false, "MAP" );
+		} 
+	} else {
+		cacti_log("Snmp location error: ".$snmp_location, false, "MAP");
+		$gpslocation = false;
+	}
+	return $gpslocation;
 }
 
 function map_utilities_list () {
 	global $colors;
 
-	html_header(array("Map Plugin"), 2);
+	html_header(array("Map Plugin"), 4);
 	?>
 	<tr bgcolor="#<?php print $colors["form_alternate1"];?>">
 		<td class="textArea">
 			<a href='utilities.php?action=map_rebuild'>Rebuild mapping table</a>
 		</td>
 		<td class="textArea">
-			This will rebuild the mapping coordinate table from the device list.
+			This will rebuild the mapping coordinate table from the device list, clear of the location table.
+		</td>
+	</tr>
+	<tr bgcolor="#<?php print $colors["form_alternate1"];?>">
+		<td class="textArea">
+			<a href='utilities.php?action=coordinate_rebuild'>Rebuild host link to coordinate table</a>
+		</td>
+		<td class="textArea">
+			This will rebuild the link from device to the coordinate (after a backup/restore of the coordinate table).
 		</td>
 	</tr>
 	<?php
@@ -303,9 +347,31 @@ function map_setup_table () {
 	
 }
 
-function map_api_device_new() {
+function map_api_device_new( $host ) {
 	// device is saved, take the snmplocation to check with database
+	$snmp_location = query_location ( $host );
+
+	// geocod it, many Google query but the address is the geocoded one
+	$gpslocation = geocod_address ( $snmp_location );
+	if( $gpslocation == false) 
+		return $host;
+
+	// check if this adress is present into the plugin_map_coordinate
+	$address_id = db_fetch_cell("SELECT id FROM plugin_map_coordinate WHERE address='".sql_sanitize($gpslocation[2])."'" );
+	if( $address_id == 0) // record does not exist
+	{
+		// save to new table with id and location
+		$ret = db_execute("INSERT INTO plugin_map_coordinate (address, lat, lon) VALUES ('"
+		. sql_sanitize($gpslocation[2]) ."','"
+		. sql_sanitize($gpslocation[0]) . "', '"
+		. sql_sanitize($gpslocation[1]) . "')");
+	} 
+
+   // and add  host to plugin_map_host_table
+	$address_id = db_fetch_cell("SELECT id FROM plugin_map_coordinate WHERE address='".sql_sanitize($gpslocation[2])."'" );
+	db_execute("REPLACE INTO plugin_map_host (host_id, address_id) VALUES (" .$host['id']. "," .$address_id. ")");
 	
+	return $host;
 }
 
 function GoogleGeocode($address){
