@@ -21,8 +21,6 @@
  | http://www.cacti.net/                                                   |
  +-------------------------------------------------------------------------+
 */
-// AIzaSyCpw0hNO2ZzIxKb9cTyrSPEN3ADvUTc5Xc
-// AIzaSyAr0rad39hJtQLiRoPqsTstFW9u8kl6PYA
 
 $guest_account = true;
 chdir('../../');
@@ -40,6 +38,7 @@ if (isset($_REQUEST["button_clear_x"])) {
 
 /* remember these search fields in session vars so we don't have to keep passing them around */
 load_current_session_value("hostname", "sess_map_host", "");
+$mapapikey = read_config_option('map_api_key');
 
 $sql_where  = '';
 $hostname       = get_request_var_request("hostname");
@@ -121,8 +120,7 @@ html_start_box("", "100%", $colors["header"], "3", "center", "");
 
 //    <script src="https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/markerclusterer.js"></script>
     <script src="http://lslcact01.lausanne.ch/cacti/plugins/map/markerclusterer.js"></script>
-
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=<?php print read_config_option('map_api_key')?>&callback=initMap"></script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?<?php ($mapapikey != NULL)?print 'key='.$mapapikey."&":"" ?>callback=initMap"></script>
 	<script>
 	function initMap() {
         var center = new google.maps.LatLng(46.52, 6.64);

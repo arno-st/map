@@ -140,7 +140,8 @@ function map_config_settings () {
 			"friendly_name" => "Which maping tools",
 			"description" => "Define the mapping tools used.",
 			"method" => "drop_array",
-			'array' => array("0" => "GoogleMap", "1" => "OpenStreetMap"),
+//			'array' => array("0" => "GoogleMap", "1" => "OpenStreetMap"),
+			'array' => array("0" => "GoogleMap"),
 			"default" => "20"
 			),
 		"map_api_key" => array(
@@ -381,7 +382,10 @@ function GoogleGeocode($address){
     // url encode the address
      
     // google map geocode api url
-    $url = "https://maps.google.com/maps/api/geocode/json?address={$address}&key={$mapapikey}";
+	if( $mapapikey != null)
+		$url = "https://maps.google.com/maps/api/geocode/json?address={$address}&key={$mapapikey}";
+	else 
+		$url = "https://maps.google.com/maps/api/geocode/json?address={$address}";
  
     // get the json response
     $resp_json = file_get_contents($url);
