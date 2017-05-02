@@ -114,7 +114,7 @@ function map_check_dependencies() {
 function plugin_map_version () {
 	return array(
 		'name'     => 'Map',
-		'version'  => '0.3',
+		'version'  => '0.31',
 		'longname' => 'Map Viewer',
 		'author'   => 'Arno Streuli',
 		'homepage' => 'http://cactiusers.org',
@@ -233,7 +233,7 @@ function map_utilities_action ($action) {
 				// snmp_get syslocation
 				$snmp_location = query_location ( $host );
 				// geocod it, many Google query but the address is the geocoded one
-				$gpslocation = geocod_address ( $snmp_location );
+				$gpslocation = geocod_address( $snmp_location );
 				if( $gpslocation == false) 
 					continue;
 
@@ -292,6 +292,11 @@ function geocod_address( $snmp_location ) {
 			$gpslocation[2] = str_replace ("'", " ", $gpslocation[2]); // replace ' by space
 map_log("adresse: ".$gpslocation[2], false, "MAP" );
 		} 
+	} else if( count($address) == 2 ) { 
+		// gps coordinate
+		$gpslocation['2'] = GoogleReverGeocode( $address[0], $address[1] );
+		$gpslocation['1'] = $address[1]; // Longitude
+		$gpslocation['0'] = $address[0]; // Latitude
 	} else {
 		map_log("Snmp location error: ".$snmp_location );
 		$gpslocation = false;
@@ -375,6 +380,37 @@ function map_api_device_new( $host ) {
 	return $host;
 }
 
+// return formatted_address
+function GoogleReverGeocode ($lat, $lng ) {
+	global $config;
+	$mapapikey = read_config_option('map_api_key');
+
+    // google map geocode api url
+	if( $mapapikey != null)
+		$url = "https://maps.googleapis.com/maps/api/geocode/json?latlng=".$lat.",".$lng."&key={$mapapikey}&sensor=true";
+	else 
+		$url = "https://maps.googleapis.com/maps/api/geocode/json?latlng=".$lat.",".$lng."&sensor=true";
+
+	//https://maps.googleapis.com/maps/api/geocode/json?latlng=46.51157,6.62179&amp;key=AIzaSyCpw0hNO2ZzIxKb9cTyrSPEN3ADvUTc5Xc&amp;sensor=true
+    // get the json response
+    $resp_json = file_get_contents($url);
+     
+    // decode the json
+    $resp = json_decode($resp_json, true, 512 );
+
+    // response status will be 'OK', if able to geocode given address 
+    if($resp['status']=='OK'){
+         // get the important data
+        $formatted_address = str_replace ("'", " ", utf8_decode($resp['results'][0]['formatted_address']) );
+		map_log("Google ReverseGeocoding: ". $formatted_address );
+    } else{
+		map_log("Google Geocoding error: ".$resp['status'] );
+        $formatted_address = false;
+    }
+
+	return $formatted_address;
+}
+
 function GoogleGeocode($address){
 	global $config;
 	$mapapikey = read_config_option('map_api_key');
@@ -435,7 +471,7 @@ map_log("Open Street Address: ".$address );
 
 function map_log( $text ){
 	$dolog = read_config_option('map_log_debug');
-	if( $dolog ) map_log( $text, false, "MAP" );
+	if( $dolog ) cacti_log( $text, false, "MAP" );
 
 }
 ?>
