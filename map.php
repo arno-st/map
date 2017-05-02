@@ -21,9 +21,6 @@
  | http://www.cacti.net/                                                   |
  +-------------------------------------------------------------------------+
 */
-// AIzaSyCpw0hNO2ZzIxKb9cTyrSPEN3ADvUTc5Xc
-// AIzaSyAr0rad39hJtQLiRoPqsTstFW9u8kl6PYA
-
 $guest_account = true;
 chdir('../../');
 include("./include/auth.php");
