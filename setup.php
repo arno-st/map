@@ -114,7 +114,7 @@ function map_check_dependencies() {
 function plugin_map_version () {
 	return array(
 		'name'     => 'Map',
-		'version'  => '0.2',
+		'version'  => '0.3',
 		'longname' => 'Map Viewer',
 		'author'   => 'Arno Streuli',
 		'homepage' => 'http://cactiusers.org',
@@ -223,7 +223,7 @@ function map_utilities_action ($action) {
 				$address_id = db_fetch_cell("SELECT id FROM plugin_map_coordinate WHERE address='".sql_sanitize($gpslocation[2])."'" );
 				db_execute("REPLACE INTO plugin_map_host (host_id, address_id) VALUES (" .$host['id']. "," .$address_id. ")");
 
-				cacti_log("lati: ". $gpslocation[0]." longi: ".$gpslocation[1], false, "MAP");
+				map_log("lati: ". $gpslocation[0]." longi: ".$gpslocation[1] );
 			}
 		} else if ($action == 'coordinate_rebuild') {
 			// Empty the table first
@@ -242,7 +242,7 @@ function map_utilities_action ($action) {
 				if( $address_id != 0 )
 					db_execute("INSERT INTO plugin_map_host (host_id, address_id) VALUES (" .$host['id']. "," .$address_id. ")");
 
-				cacti_log("host: " .$host['id']. " address: " .$address_id, false, "MAP");
+				map_log("host: " .$host['id']. " address: " .$address_id );
 			}
 		}
 		include_once('./include/top_header.php');
@@ -267,7 +267,7 @@ function query_location( $host ) {
 		$host['snmp_auth_protocol'], $host['snmp_priv_passphrase'], $host['snmp_priv_protocol'], 
 		$host['snmp_context'] ); 
 
-cacti_log("device: ".$host['hostname']." ".$snmp_location, false, "MAP" );
+map_log("device: ".$host['hostname']." ".$snmp_location );
 
 	return $snmp_location;
 }
@@ -290,10 +290,10 @@ function geocod_address( $snmp_location ) {
 		}
 		if($gpslocation != false ){
 			$gpslocation[2] = str_replace ("'", " ", $gpslocation[2]); // replace ' by space
-cacti_log("adresse: ".$gpslocation[2], false, "MAP" );
+map_log("adresse: ".$gpslocation[2], false, "MAP" );
 		} 
 	} else {
-		cacti_log("Snmp location error: ".$snmp_location, false, "MAP");
+		map_log("Snmp location error: ".$snmp_location );
 		$gpslocation = false;
 	}
 	return $gpslocation;
@@ -421,7 +421,7 @@ function GoogleGeocode($address){
         }
          
     }else{
-		cacti_log("Google Geocoding error: ".$resp['status'], false, "MAP");
+		map_log("Google Geocoding error: ".$resp['status'] );
         return false;
     }
 }
@@ -429,7 +429,13 @@ function GoogleGeocode($address){
 function OpenStreetGeocode($address){
     // url encode the address
     $address = urlencode($address);
-cacti_log("Open Street Address: ".$address."\n", false, "MAP" );
+map_log("Open Street Address: ".$address );
+
+}
+
+function map_log( $text ){
+	$dolog = read_config_option('map_log_debug');
+	if( $dolog ) map_log( $text, false, "MAP" );
 
 }
 ?>
