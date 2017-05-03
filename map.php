@@ -50,7 +50,7 @@ if ($hostname != '') {
 include(dirname(__FILE__) . "/general_header.php");
 
 $sql_query = "SELECT host.id as 'id', 
-		host.hostname as 'hostname', map.lat as 'lat', map.lon as 'lon', map.address as 'address' 
+		host.hostname as 'hostname', map.lat as 'lat', map.lon as 'lon', map.address as 'address', host.disabled as 'disabled', host.status as 'status'
 		FROM host, plugin_map_coordinate map, plugin_map_host maphost
 		WHERE host.id=maphost.host_id
 		AND maphost.address_id=map.id
@@ -118,7 +118,6 @@ html_start_box("", "100%", $colors["header"], "3", "center", "");
       }
     </style>
 
-//    <script src="https://developers.google.com/maps/documentation/javascript/examples/markerclusterer/markerclusterer.js"></script>
     <script src="http://lslcact01.lausanne.ch/cacti/plugins/map/markerclusterer.js"></script>
     <script async defer src="https://maps.googleapis.com/maps/api/js?<?php ($mapapikey != NULL)?print 'key='.$mapapikey."&":"" ?>callback=initMap"></script>
 	<script>
@@ -131,7 +130,7 @@ html_start_box("", "100%", $colors["header"], "3", "center", "");
         });
 		
 		var markers = [];
-		
+		var iconBase = './images/';
 
 <?php
 		foreach( $result as $device ) {
@@ -139,7 +138,8 @@ html_start_box("", "100%", $colors["header"], "3", "center", "");
 ?>
 			var marker = new google.maps.Marker( {
 				position: new google.maps.LatLng(<?php print $device['lat'];?>, <?php print $device['lon'];?>),
-				title: '<?php print $device['hostname']. "\\n" . utf8_encode($device['address']);?>'
+				title: '<?php print $device['hostname']. "\\n" . utf8_encode($device['address']);?>',
+				icon: iconBase + '<?php if ($device['disabled'] == 'on') print 'pingrey.png'; else if ($device['status']==1) print 'pin.png'; else if ($device['status']==2) print 'pinblue.png'; else print 'pingreen.png';?>'
 			} );
 			markers.push(marker);
 <?php
