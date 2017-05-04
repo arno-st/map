@@ -267,7 +267,7 @@ function query_location( $host ) {
 		$host['snmp_auth_protocol'], $host['snmp_priv_passphrase'], $host['snmp_priv_protocol'], 
 		$host['snmp_context'] ); 
 
-map_log("device: ".$host['hostname']." ".$snmp_location );
+map_log("\n\ndevice: ".$host['hostname']." ".$snmp_location );
 
 	return $snmp_location;
 }
@@ -290,7 +290,7 @@ function geocod_address( $snmp_location ) {
 		}
 		if($gpslocation != false ){
 			$gpslocation[2] = str_replace ("'", " ", $gpslocation[2]); // replace ' by space
-map_log("adresse: ".$gpslocation[2], false, "MAP" );
+map_log("adresse: ".$gpslocation[2] );
 		} 
 	} else if( count($address) == 2 ) { 
 		// gps coordinate
