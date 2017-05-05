@@ -15,7 +15,7 @@
 ----[ Installation
 
 	To install the plugin, please refer to the Plugin Installation Documentation
-
+        Look on the correct branch for version of cacit-0.8 or cacti-1.x
 ----[ Possible Bugs?
    
 
