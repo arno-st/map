@@ -28,6 +28,7 @@ function plugin_map_install () {
 	api_plugin_register_hook('map', 'draw_navigation_text', 'map_draw_navigation_text', 'setup.php');
 	api_plugin_register_hook('map', 'config_settings', 'map_config_settings', 'setup.php'); // personl settings info
 	api_plugin_register_hook('map', 'api_device_new', 'map_api_device_new', 'setup.php');
+	api_plugin_register_hook('map', 'device_remove', 'map_device_remove', 'setup.php');
 	api_plugin_register_hook('map', 'utilities_action', 'map_utilities_action', 'setup.php');
 	api_plugin_register_hook('map', 'utilities_list', 'map_utilities_list', 'setup.php');
 
@@ -38,8 +39,8 @@ function plugin_map_install () {
 
 function plugin_map_uninstall () {
 	// Do any extra Uninstall stuff here
-	db_execute("DROP TABLE IF EXISTS `plugin_map_coordinate`;");
-	db_execute("DROP TABLE IF EXISTS `plugin_map_host`;");
+//	db_execute("DROP TABLE IF EXISTS `plugin_map_coordinate`;");
+//	db_execute("DROP TABLE IF EXISTS `plugin_map_host`;");
 }
 
 function plugin_map_check_config () {
@@ -247,9 +248,10 @@ function geocod_address( $snmp_location ) {
 	$maptools = read_config_option('map_tools');
 
 	// parse google map for geocoding
+	// location format: Country;City;Street_Building;Floor;Room;Rack;RU;Lat;lon
 	$snmp_location = str_replace( ",", ";", $snmp_location );
-	$address = explode( ';', $snmp_location ); // Suisse;Lausanne;Chemin de Pierre-de-Plan 4;-1;Local Telecom
-	if( count($address) >= 3 ) {
+	$address = explode( ';', $snmp_location ); // Suisse;Lausanne;Chemin de Pierre-de-Plan 4;-1;Local Telecom;;;46.54;6.56
+	if( (count($address) <= 7) ) {
 		$location = $address[2]. "," .$address[1]. "," . $address[0];
 		$location = str_replace(' ', '+', $location );
 		$gpslocation = array();
@@ -262,11 +264,11 @@ function geocod_address( $snmp_location ) {
 			$gpslocation[2] = str_replace ("'", " ", $gpslocation[2]); // replace ' by space
 map_log("adresse: ".$gpslocation[2], false, "MAP" );
 		} 
-	} else if( count($address) == 2 ) { 
+	} else if( count($address) == 9 ) { 
 		// gps coordinate
-		$gpslocation['2'] = GoogleReverGeocode( $address[0], $address[1] );
-		$gpslocation['1'] = $address[1]; // Longitude
-		$gpslocation['0'] = $address[0]; // Latitude
+		$gpslocation['2'] = GoogleReverGeocode( $address[7], $address[8] );
+		$gpslocation['1'] = $address[8]; // Longitude 6.56
+		$gpslocation['0'] = $address[7]; // Latitude 46.54
 	} else {
 		map_log("Snmp location error: ".$snmp_location );
 		$gpslocation = false;
@@ -348,6 +350,18 @@ function map_api_device_new( $host ) {
 	db_execute("REPLACE INTO plugin_map_host (host_id, address_id) VALUES (" .$host['id']. "," .$address_id. ")");
 	
 	return $host;
+}
+
+function map_device_remove( $hosts_id ){
+	//array(1) { [0]=> string(4) "1921" } device remove : 
+	if( sizeof($hosts_id) ) {
+		foreach( $hosts_id as $host_id) {
+			map_log( "remove host: " . $host_id );
+			db_execute("DELETE FROM plugin_map_host WHERE host_id=".$host_id );
+		}
+	}
+
+	return $hosts_id;
 }
 
 // return formatted_address

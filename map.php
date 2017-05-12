@@ -29,13 +29,6 @@ include("./include/auth.php");
 map_setup_table();
 map_check_upgrade();
 
-/* if the user pushed the 'clear' button */
-if (isset_request_var('button_clear_x')) {
-	kill_session_var("sess_map_host");
-
-	unset($_REQUEST["hostname"]);
-}
-
 /* remember these search fields in session vars so we don't have to keep passing them around */
 load_current_session_value("hostname", "sess_map_host", "");
 $mapapikey = read_config_option('map_api_key');
@@ -63,9 +56,20 @@ $result = db_fetch_assoc($sql_query);
 <!--
 
 function applyFilterChange(objForm) {
-	strURL = '&hostname=' + objForm.host.value;
+	if( objForm.host.length > 0)
+		strURL = '&hostname=' + objForm.host.value;
+	else strURL = '';
 	document.location = strURL;
 }
+function clearFilter() {
+	<?php
+		kill_session_var("sess_map_host");
+
+		unset($_REQUEST["hostname"]);
+	?>
+	strURL  = 'map.php?header=false';
+	loadPageNoHeader(strURL);
+	}
 
 -->
 </script>
@@ -87,14 +91,15 @@ html_start_box("<strong>Filters</strong>", "100%", $colors["header"], "3", "cent
 					<input type="text" name="hostname" size="25" value="<?php print get_request_var_request("hostname");?>">
 				</td>
 				<td nowrap style='white-space: nowrap;'>
-					&nbsp;<input type="submit" value="Go" title="Set/Refresh Filters">
-					<input type="submit" name="button_clear_x" value="Clear" title="Reset fields to defaults">
+					<input type="submit" value="Go" title="Set/Refresh Filters">
+					<input type='button' value="Clear" id='clear' onClick='clearFilter()' title="Reset fields to defaults">
 				</td>
 			</tr>
 		</table>
 	</form>
 	</td>
 </tr>
+
 <?php
 html_end_box();
 
@@ -121,6 +126,11 @@ html_start_box("", "100%", $colors["header"], "3", "center", "");
     <script src="http://lslcact01.lausanne.ch/cacti/plugins/map/markerclusterer.js"></script>
     <script async defer src="https://maps.googleapis.com/maps/api/js?<?php ($mapapikey != NULL)?print 'key='.$mapapikey."&":"" ?>callback=initMap"></script>
 	<script>
+    // auto refresh every 5 minutes
+    setTimeout(function() {
+    location.reload();
+    }, 300000);
+
 	function initMap() {
         var center = new google.maps.LatLng(46.52, 6.64);
         var map = new google.maps.Map(document.getElementById('map'), {
