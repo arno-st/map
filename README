@@ -26,3 +26,4 @@
 
 ----[ Changelog
 
+1.0.2 The snmp location format change to include GPS value in the following format: Country;City;Street_Building;Floor;Room;Rack;RU;Lat;Long
