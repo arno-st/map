@@ -19,10 +19,4 @@
 ----[ Possible Bugs?
    
 
-----[ Future Changes
-
-	Got any ideas or complaints, please e-mail me!
-	Add the option of OpenStreetMap
-
-----[ Changelog
-
+Chose the version Cacti 0.8.8x or Cacti1.x
