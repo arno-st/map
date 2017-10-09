@@ -251,7 +251,7 @@ function geocod_address( $snmp_location ) {
 	// location format: Country;City;Street_Building;Floor;Room;Rack;RU;Lat;lon
 	$snmp_location = str_replace( ",", ";", $snmp_location );
 	$address = explode( ';', $snmp_location ); // Suisse;Lausanne;Chemin de Pierre-de-Plan 4;-1;Local Telecom;;;46.54;6.56
-	if( (count($address) <= 7) ) {
+	if( (count($address) <= 7) && count($address) > 3 ) {
 		$location = $address[2]. "," .$address[1]. "," . $address[0];
 		$location = str_replace(' ', '+', $location );
 		$gpslocation = array();
