@@ -326,6 +326,15 @@ function map_setup_table () {
 }
 
 function map_api_device_new( $host ) {
+/* id, hostname, snmp_community, 
+		snmp_version, snmp_username, snmp_password, snmp_port, snmp_timeout, disabled, availability_method, 
+		ping_method, ping_port, ping_timeout, ping_retries, snmp_auth_protocol, snmp_priv_passphrase, 
+		snmp_priv_protocol, snmp_context */
+	// if snmp is not active return
+	if( $host['availability_method'] == 3 ) {}
+		return $host;
+	}
+	
 	// device is saved, take the snmplocation to check with database
 	$snmp_location = query_location ( $host );
 
