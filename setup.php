@@ -331,7 +331,7 @@ function map_api_device_new( $host ) {
 		ping_method, ping_port, ping_timeout, ping_retries, snmp_auth_protocol, snmp_priv_passphrase, 
 		snmp_priv_protocol, snmp_context */
 	// if snmp is not active return
-	if( $host['availability_method'] == 3 ) {}
+	if( $host['availability_method'] == 3 ) {
 		return $host;
 	}
 	
