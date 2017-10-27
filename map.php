@@ -123,7 +123,7 @@ html_start_box("", "100%", $colors["header"], "3", "center", "");
       }
     </style>
 
-    <script src="http://lslcact01.lausanne.ch/cacti/plugins/map/markerclusterer.js"></script>
+    <script src="/cacti/plugins/map/markerclusterer.js"></script>
     <script async defer src="https://maps.googleapis.com/maps/api/js?<?php ($mapapikey != NULL)?print 'key='.$mapapikey."&":"" ?>callback=initMap"></script>
 	<script>
     // auto refresh every 5 minutes
