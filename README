@@ -28,3 +28,4 @@
 
 1.0.2 The snmp location format change to include GPS value in the following format: Country;City;Street_Building;Floor;Room;Rack;RU;Lat;Long
 1.0.3 check if the device is snmp enable otherwise do not try to find the location
+1.1.0 use cacti site database for location taken from snmp location in format: country;city;address;floor;room;rack;RU or ;;;floor;room;rack;RU;lat;long the 7 and 8 argument are lat/log

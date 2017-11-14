@@ -43,10 +43,9 @@ if ($hostname != '') {
 general_header();
 
 $sql_query = "SELECT host.id as 'id', 
-		host.hostname as 'hostname', map.lat as 'lat', map.lon as 'lon', map.address as 'address', host.disabled as 'disabled', host.status as 'status'
-		FROM host, plugin_map_coordinate map, plugin_map_host maphost
-		WHERE host.id=maphost.host_id
-		AND maphost.address_id=map.id
+		host.hostname as 'hostname', sites.latitude as 'lat', sites.longitude as 'lon', sites.address1 as 'address', host.disabled as 'disabled', host.status as 'status'
+		FROM host, sites
+		WHERE host.site_id=sites.id
 		$sql_where 
 		ORDER BY host.id";
 
@@ -115,15 +114,15 @@ html_start_box("", "100%", $colors["header"], "3", "center", "");
         -webkit-box-shadow: rgba(64, 64, 64, 0.5) 0 2px 5px;
         -moz-box-shadow: rgba(64, 64, 64, 0.5) 0 2px 5px;
         box-shadow: rgba(64, 64, 64, 0.1) 0 2px 5px;
-        width: 800px;
+        width: 1024px;
       }
       #map {
-        width: 800px;
-        height: 500px;
+        width: 1024px;
+        height: 768px;
       }
     </style>
 
-    <script src="/cacti/plugins/map/markerclusterer.js"></script>
+    <script src="/cacti1/plugins/map/markerclusterer.js"></script>
     <script async defer src="https://maps.googleapis.com/maps/api/js?<?php ($mapapikey != NULL)?print 'key='.$mapapikey."&":"" ?>callback=initMap"></script>
 	<script>
     // auto refresh every 5 minutes
@@ -132,7 +131,12 @@ html_start_box("", "100%", $colors["header"], "3", "center", "");
     }, 300000);
 
 	function initMap() {
-        var center = new google.maps.LatLng(46.52, 6.64);
+		<?php
+		$gpslocation_lati = read_config_option('map_center_gps_lati');
+		$gpslocation_longi = read_config_option('map_center_gps_longi');
+		?>
+//        var center = new google.maps.LatLng(46.52, 6.64);
+        var center = new google.maps.LatLng(<?php print $gpslocation_lati .",". $gpslocation_longi ?>);
         var map = new google.maps.Map(document.getElementById('map'), {
           zoom: 10,
           center: center,

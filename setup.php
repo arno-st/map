@@ -28,7 +28,6 @@ function plugin_map_install () {
 	api_plugin_register_hook('map', 'draw_navigation_text', 'map_draw_navigation_text', 'setup.php');
 	api_plugin_register_hook('map', 'config_settings', 'map_config_settings', 'setup.php'); // personl settings info
 	api_plugin_register_hook('map', 'api_device_new', 'map_api_device_new', 'setup.php');
-	api_plugin_register_hook('map', 'device_remove', 'map_device_remove', 'setup.php');
 	api_plugin_register_hook('map', 'utilities_action', 'map_utilities_action', 'setup.php');
 	api_plugin_register_hook('map', 'utilities_list', 'map_utilities_list', 'setup.php');
 
@@ -39,8 +38,6 @@ function plugin_map_install () {
 
 function plugin_map_uninstall () {
 	// Do any extra Uninstall stuff here
-//	db_execute("DROP TABLE IF EXISTS `plugin_map_coordinate`;");
-//	db_execute("DROP TABLE IF EXISTS `plugin_map_host`;");
 }
 
 function plugin_map_check_config () {
@@ -86,6 +83,10 @@ function map_check_upgrade () {
 				"webpage='" . $version["homepage"] . "' " .
 				"WHERE directory='" . $version["name"] . "' ");
 	}
+	if( $old < '1.1' ) {
+		db_execute("DROP TABLE IF EXISTS `plugin_map_coordinate`;");
+		db_execute("DROP TABLE IF EXISTS `plugin_map_host`;");
+	}
 }
 
 function plugin_map_version () {
@@ -122,6 +123,13 @@ function map_config_settings () {
 			"max_length" => 80,
 			"default" => ""
 			),
+		"map_center" => array(
+			"friendly_name" => "Map center",
+			"description" => "Address to where whe should center the map (number,street,city,country).",
+			"method" => "textbox",
+			"max_length" => 120,
+			"default" => ""
+			),
 		'map_log_debug' => array(
 			'friendly_name' => 'Debug Log',
 			'description' => 'Enable logging of debug messages during map file creation',
@@ -135,6 +143,20 @@ function map_config_settings () {
 	else
 		$settings['misc']=$temp;
 
+	if( get_request_var('action')=='save') {
+		$location = read_config_option('map_center');
+		$maptools = read_config_option('map_tools');
+		$location = str_replace(' ', '+', $location );
+		if( $maptools == '0' ) {
+			$gpslocation = GoogleGeocode($location);
+		} else if( $maptools == '1' ) {
+			$gpslocation = OpenStreetGeocode($location);
+		}
+	 	set_config_option('map_center_gps_lati', $gpslocation[0]);
+	 	set_config_option('map_center_gps_longi', $gpslocation[1]);
+	}
+
+	// https://maps.googleapis.com/maps/api/geocode/json?latlng=46.51157,6.62179&amp;key=AIzaSyCpw0hNO2ZzIxKb9cTyrSPEN3ADvUTc5Xc&amp
 }
 
 function map_show_tab () {
@@ -157,68 +179,71 @@ function map_draw_navigation_text ($nav) {
 	return $nav;
 }
 
+function map_utilities_list () {
+	global $colors;
+	html_header(array("Map Plugin"), 4);
+	?>
+	<tr bgcolor="#<?php print $colors["form_alternate1"];?>">
+		<td class="textArea">
+			<a href='utilities.php?action=map_rebuild'>Rebuild sites table</a>
+		</td>
+		<td class="textArea">
+			This will rebuild the sites table from the device list.
+		</td>
+	</tr>
+	<?php
+}
 function map_utilities_action ($action) {
 	// get device list,  where snmp is active
 	$dbquery = db_fetch_assoc("SELECT id, hostname, snmp_community, 
 	snmp_version, snmp_username, snmp_password, snmp_port, snmp_timeout, disabled, availability_method, 
 	ping_method, ping_port, ping_timeout, ping_retries, snmp_auth_protocol, snmp_priv_passphrase, 
 	snmp_priv_protocol, snmp_context FROM host WHERE snmp_version > '0' ORDER BY id");
-
-	if ( (sizeof($dbquery) > 0) && $action == 'map_rebuild' || $action == 'coordinate_rebuild'){
+	if ( (sizeof($dbquery) > 0) && $action == 'map_rebuild' ){
 		if ($action == 'map_rebuild') {
-		// rebuild the map address table
-			db_execute("TRUNCATE TABLE `plugin_map_coordinate`;");
-			db_execute("TRUNCATE TABLE `plugin_map_host`;");
-
+		// Upgrade the map address table
 			foreach ($dbquery as $host) {
-				// snmp_get syslocation, and geocodit
+				// device is saved, take the snmplocation to check with database
 				$snmp_location = query_location ( $host );
-
-				// geocod it, many Google query but the address is the geocoded one
+map_log("host: " . $host['hostname'] ."\n");
+	// geocod it, many Google query but the address is the geocoded one
+	/* array format:
+                    $lati, 
+                    $longi, 
+                    $formatted_address,
+					$location (array of full detail)
+*/
 				$gpslocation = geocod_address ( $snmp_location );
+
 				if( $gpslocation == false) 
 					continue;
 
 				// check if this adress is present into the plugin_map_coordinate
-				$address_id = db_fetch_cell("SELECT id FROM plugin_map_coordinate WHERE address='".$gpslocation[2]."'" );
+				$address_id = db_fetch_cell("SELECT id FROM sites WHERE name='".mysql_real_escape_string($gpslocation[2])."'" );
 				if( $address_id == 0) // record does not exist
 				{
 					// save to new table with id and location
-					$ret = db_execute("INSERT INTO plugin_map_coordinate (address, lat, lon) VALUES ('"
-					. $gpslocation[2] ."','"
+					$ret = db_execute("INSERT INTO sites (name, address1, city, state, postal_code, country, address2, latitude, longitude) VALUES ('"
+					. mysql_real_escape_string($gpslocation[2]) ."','"
+					. mysql_real_escape_string($gpslocation[3]['address1'])." ".$gpslocation[3]['street_number']."','"
+					. $gpslocation[3]['city']."','"
+					. $gpslocation[3]['state']."','"
+					. $gpslocation[3]['postal_code']."','"
+					. $gpslocation[3]['country']."','"
+					. mysql_real_escape_string($gpslocation[3]['address2'])."','"
 					. $gpslocation[0] . "', '"
 					. $gpslocation[1] . "')");
-				} 
 
-				   // and add  host to plugin_map_host_table
-				$address_id = db_fetch_cell("SELECT id FROM plugin_map_coordinate WHERE address='".$gpslocation[2]."'" );
-				db_execute("REPLACE INTO plugin_map_host (host_id, address_id) VALUES (" .$host['id']. "," .$address_id. ")");
+					// and add  host to host_table
+					$address_id = db_fetch_cell("SELECT id FROM sites WHERE name='".mysql_real_escape_string($gpslocation[2])."'" );
+					db_execute("UPDATE host SET site_id = ".$address_id. " where id=".$host['id'] );
+				}
 
-				map_log("lati: ". $gpslocation[0]." longi: ".$gpslocation[1] );
-			}
-		} else if ($action == 'coordinate_rebuild') {
-			// Empty the table first
-			db_execute("TRUNCATE TABLE `plugin_map_host`;");
-
-			foreach ($dbquery as $host) {
-				// snmp_get syslocation
-				$snmp_location = query_location ( $host );
-				// geocod it, many Google query but the address is the geocoded one
-				$gpslocation = geocod_address( $snmp_location );
-				if( $gpslocation == false) 
-					continue;
-
-				// Find the address on the coordinate table
-				$address_id = db_fetch_cell("SELECT id FROM plugin_map_coordinate WHERE address='".$gpslocation[2]."'" );
-				if( $address_id != 0 )
-					db_execute("INSERT INTO plugin_map_host (host_id, address_id) VALUES (" .$host['id']. "," .$address_id. ")");
-
-				map_log("host: " .$host['id']. " address: " .$address_id );
 			}
 		}
-		top_header();
+		include_once('./include/top_header.php');
 		utilities();
-		bottom_footer();
+		include_once('./include/bottom_footer.php');
 	} 
 	return $action;
 }
@@ -262,67 +287,21 @@ function geocod_address( $snmp_location ) {
 		}
 		if($gpslocation != false ){
 			$gpslocation[2] = str_replace ("'", " ", $gpslocation[2]); // replace ' by space
-map_log("adresse: ".$gpslocation[2], false, "MAP" );
 		} 
 	} else if( count($address) == 9 ) { 
 		// gps coordinate
-		$gpslocation['2'] = GoogleReverGeocode( $address[7], $address[8] );
-		$gpslocation['1'] = $address[8]; // Longitude 6.56
-		$gpslocation['0'] = $address[7]; // Latitude 46.54
+		$gpslocation = GoogleReverGeocode( $address[7], $address[8] );
 	} else {
-		map_log("Snmp location error: ".$snmp_location );
+		map_log("Snmp location error " );
 		$gpslocation = false;
 	}
 	return $gpslocation;
-}
-
-function map_utilities_list () {
-	global $colors;
-
-	html_header(array("Map Plugin"), 4);
-	?>
-	<tr bgcolor="#<?php print $colors["form_alternate1"];?>">
-		<td class="textArea">
-			<a href='utilities.php?action=map_rebuild'>Rebuild mapping table</a>
-		</td>
-		<td class="textArea">
-			This will rebuild the mapping coordinate table from the device list, clear of the location table.
-		</td>
-	</tr>
-	<tr bgcolor="#<?php print $colors["form_alternate1"];?>">
-		<td class="textArea">
-			<a href='utilities.php?action=coordinate_rebuild'>Rebuild host link to coordinate table</a>
-		</td>
-		<td class="textArea">
-			This will rebuild the link from device to the coordinate (after a backup/restore of the coordinate table).
-		</td>
-	</tr>
-	<?php
 }
 
 function map_setup_table () {
 	global $config, $database_default;
 	include_once($config["library_path"] . "/database.php");
 
-	$data = array();
-	$data['columns'][] = array('name' => 'id', 'type' => 'int(12)', 'NULL' => false, 'auto_increment' => true);
-	$data['columns'][] = array('name' => 'address', 'type' => 'varchar(150)', 'NULL' => false, 'default' => '');
-	$data['columns'][] = array('name' => 'lat', 'type' => 'float(10,6)', 'NULL' => false , 'default' => '0');
-	$data['columns'][] = array('name' => 'lon', 'type' => 'float(10,6)', 'NULL' => false, 'default' => '0');
-	$data['type'] = 'MyISAM';
-	$data['primary'] = 'id';
-	$data['keys'][] = array('name' => 'id', 'columns' => 'id');
-	$data['comment'] = 'Plugin map - Table of map hosts coordinate';
-	api_plugin_db_table_create('map', 'plugin_map_coordinate', $data);
-
-	$data = array();
-	$data['columns'][] = array('name' => 'host_id', 'type' => 'mediumint(8)', 'NULL' => false, 'default' => '0');
-	$data['columns'][] = array('name' => 'address_id', 'type' => 'int(12)', 'NULL' => false, 'default' => '0');
-	$data['type'] = 'MyISAM';
-	$data['primary'] = "host_id`,`address_id";
-	$data['comment'] = 'Plugin map - Table of GPS coordinate';
-	api_plugin_db_table_create('map', 'plugin_map_host', $data);
-	
 }
 
 function map_api_device_new( $host ) {
@@ -331,7 +310,8 @@ function map_api_device_new( $host ) {
 		ping_method, ping_port, ping_timeout, ping_retries, snmp_auth_protocol, snmp_priv_passphrase, 
 		snmp_priv_protocol, snmp_context */
 	// if snmp is not active return
-	if( $host['availability_method'] == 3 ) {
+	// or if site_id is valid return
+	if( $host['availability_method'] == 3 || $host['site_id'] != 0 ) {
 		return $host;
 	}
 	
@@ -339,38 +319,39 @@ function map_api_device_new( $host ) {
 	$snmp_location = query_location ( $host );
 
 	// geocod it, many Google query but the address is the geocoded one
+	/* array format:
+                    $lati, 
+                    $longi, 
+                    $formatted_address,
+					$location (array of full detail)
+*/
 	$gpslocation = geocod_address ( $snmp_location );
+
 	if( $gpslocation == false) 
 		return $host;
 
 	// check if this adress is present into the plugin_map_coordinate
-	$address_id = db_fetch_cell("SELECT id FROM plugin_map_coordinate WHERE address='".$gpslocation[2]."'" );
+	$address_id = db_fetch_cell("SELECT id FROM sites WHERE name='".$gpslocation[2]."'" );
 	if( $address_id == 0) // record does not exist
 	{
 		// save to new table with id and location
-		$ret = db_execute("INSERT INTO plugin_map_coordinate (address, lat, lon) VALUES ('"
-		. $gpslocation[2] ."','"
+		$ret = db_execute("INSERT INTO sites (name, address1, city, state, postal_code, country, address2, latitude, longitude) VALUES ('"
+		. mysql_real_escape_string($gpslocation[2]) ."','"
+		. mysql_real_escape_string($gpslocation[3]['address1'])." ".$gpslocation[3]['street_number']."','"
+		. $gpslocation[3]['city']."','"
+		. $gpslocation[3]['state']."','"
+		. $gpslocation[3]['postal_code']."','"
+		. $gpslocation[3]['country']."','"
+		. mysql_real_escape_string($gpslocation[3]['address2'])."','"
 		. $gpslocation[0] . "', '"
 		. $gpslocation[1] . "')");
 	} 
 
-   // and add  host to plugin_map_host_table
-	$address_id = db_fetch_cell("SELECT id FROM plugin_map_coordinate WHERE address='".$gpslocation[2]."'" );
-	db_execute("REPLACE INTO plugin_map_host (host_id, address_id) VALUES (" .$host['id']. "," .$address_id. ")");
+   // and add  host to host_table
+	$address_id = db_fetch_cell("SELECT id FROM sites WHERE name='".mysql_real_escape_string($gpslocation[2])."'" );
+	db_execute("UPDATE host SET site_id = ".$address_id. " where id=".$host['id'] );
 	
 	return $host;
-}
-
-function map_device_remove( $hosts_id ){
-	//array(1) { [0]=> string(4) "1921" } device remove : 
-	if( sizeof($hosts_id) ) {
-		foreach( $hosts_id as $host_id) {
-			map_log( "remove host: " . $host_id );
-			db_execute("DELETE FROM plugin_map_host WHERE host_id=".$host_id );
-		}
-	}
-
-	return $hosts_id;
 }
 
 // return formatted_address
@@ -393,8 +374,43 @@ function GoogleReverGeocode ($lat, $lng ) {
 
     // response status will be 'OK', if able to geocode given address 
     if($resp['status']=='OK'){
-         // get the important data
-        $formatted_address = str_replace ("'", " ", utf8_decode($resp['results'][0]['formatted_address']) );
+        // get the important data
+        $lati = $resp['results'][0]['geometry']['location']['lat'];
+        $longi = $resp['results'][0]['geometry']['location']['lng'];
+        $formatted_address = $resp['results'][0]['formatted_address'];
+
+		// location as array
+		$location = array();
+		$location = formatedJson( $resp['results'][0] );
+ 
+        // verify if data is complete
+        $data_arr = array();            
+        if($lati && $longi && $formatted_address){
+         
+            // put the data in the array
+            array_push(
+                $data_arr, 
+                    $lati, 
+                    $longi, 
+                    empty($formatted_address)?"Unnamed road":$formatted_address,
+					$location
+                );
+             
+            return $data_arr;
+             
+        }else{
+         
+            array_push(
+                $data_arr, 
+                    $lat, 
+                    $lng, 
+                    "Unnamed road",
+					$location
+                );
+             
+            return $data_arr;
+        }
+         
 		map_log("Google ReverseGeocoding: ". $formatted_address );
     } else{
 		map_log("Google Geocoding error: ".$resp['status'] );
@@ -409,7 +425,6 @@ function GoogleGeocode($address){
 	$mapapikey = read_config_option('map_api_key');
 	//https://maps.googleapis.com/maps/api/geocode/json?address=4+chemin+pierre+de+plan,+Lausanne,+Suisse&key=AIzaSyAr0rad39hJtQLiRoPqsTstFW9u8kl6PYA
     // url encode the address
-     
     // google map geocode api url
 	if( $mapapikey != null)
 		$url = "https://maps.google.com/maps/api/geocode/json?address={$address}&key={$mapapikey}";
@@ -428,25 +443,36 @@ function GoogleGeocode($address){
         // get the important data
         $lati = $resp['results'][0]['geometry']['location']['lat'];
         $longi = $resp['results'][0]['geometry']['location']['lng'];
-        $formatted_address = utf8_decode($resp['results'][0]['formatted_address']);
-         
+        $formatted_address = $resp['results'][0]['formatted_address'];
+
+		// location as array
+		$location = formatedJson( $resp['results'][0] );
+ 
         // verify if data is complete
+        // put the data in the array
+        $data_arr = array();            
         if($lati && $longi && $formatted_address){
          
-            // put the data in the array
-            $data_arr = array();            
-             
             array_push(
                 $data_arr, 
                     $lati, 
                     $longi, 
-                    $formatted_address
+                    empty($formatted_address)?"Unnamed road":$formatted_address,
+					$location
                 );
              
             return $data_arr;
              
         }else{
-            return false;
+            array_push(
+                $data_arr, 
+                    $lati, 
+                    $longi, 
+                    $address,
+					$location
+                );
+             
+            return $data_arr;
         }
          
     }else{
@@ -466,5 +492,47 @@ function map_log( $text ){
 	$dolog = read_config_option('map_log_debug');
 	if( $dolog ) cacti_log( $text, false, "MAP" );
 
+}
+
+function formatedJson( $result ) {
+	$location = array();
+	$location['address1'] = " ";
+	$location['street_number'] = " ";
+	$location['city'] = " ";
+	$location['address2'] = " ";
+	$location['state'] = " ";
+	$location['postal_code'] = " ";
+	$location['country'] = " ";
+
+		foreach ($result['address_components'] as $component) {
+
+			switch ($component['types']) {
+				case in_array('street_number', $component['types']):
+					$location['street_number'] = $component['long_name'];
+				break;
+				case in_array('route', $component['types']):
+					$location['address1'] = $component['long_name'];
+				break;
+				case in_array('locality', $component['types']):
+					$location['city'] = $component['long_name'];
+				break;
+				case in_array('administrative_area_level_2', $component['types']):
+					$location['address2'] = $component['long_name'];
+				break;
+				case in_array('administrative_area_level_1', $component['types']):
+					$location['state'] = $component['long_name'];
+				break;
+				case in_array('postal_code', $component['types']):
+					$location['postal_code'] = $component['long_name'];
+				break;
+				case in_array('country', $component['types']):
+					$location['country'] = $component['long_name'];
+				break;
+				default:
+				map_log("json error: ".$component['types']." ".$component['long_name']."\n");
+			}
+
+		}
+	return $location;
 }
 ?>
