@@ -84,6 +84,7 @@ function map_check_upgrade () {
 				"WHERE directory='" . $version["name"] . "' ");
 	}
 	if( $old < '1.1' ) {
+		// move address from plugin_map_coordinate to sites
 		db_execute("DROP TABLE IF EXISTS `plugin_map_coordinate`;");
 		db_execute("DROP TABLE IF EXISTS `plugin_map_host`;");
 	}
@@ -349,7 +350,9 @@ function map_api_device_new( $host ) {
 
    // and add  host to host_table
 	$address_id = db_fetch_cell("SELECT id FROM sites WHERE name='".mysql_real_escape_string($gpslocation[2])."'" );
-	db_execute("UPDATE host SET site_id = ".$address_id. " where id=".$host['id'] );
+	if ( !empty($address_id) ) {
+		db_execute("UPDATE host SET site_id = ".$address_id. " where id=".$host['id'] );
+	}
 	
 	return $host;
 }
