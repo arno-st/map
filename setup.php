@@ -113,8 +113,8 @@ function map_config_settings () {
 			"friendly_name" => "Which maping tools",
 			"description" => "Define the mapping tools used.",
 			"method" => "drop_array",
-//			'array' => array("0" => "GoogleMap", "1" => "OpenStreetMap"),
-			'array' => array("0" => "GoogleMap"),
+			'array' => array("0" => "GoogleMap", "1" => "OpenStreetMap"),
+//			'array' => array("0" => "GoogleMap"),
 			"default" => "20"
 			),
 		"map_api_key" => array(
@@ -205,8 +205,8 @@ function map_utilities_action ($action) {
 		// Upgrade the map address table
 			foreach ($dbquery as $host) {
 				// device is saved, take the snmplocation to check with database
-				$snmp_location = query_location ( $host );
-map_log("host: " . $host['hostname'] ."\n");
+				$snmp_location = db_fetch_cell("SELECT snmp_sysLocation FROM host WHERE id='".$host['id']."'" );
+map_log("host: " . $host['hostname'] ." location: ".$snmp_location."\n");
 	// geocod it, many Google query but the address is the geocoded one
 	/* array format:
                     $lati, 
@@ -249,26 +249,6 @@ map_log("host: " . $host['hostname'] ."\n");
 	return $action;
 }
 
-// query the snmp location from the host, host is an array with:
-/* id, hostname, snmp_community, 
-		snmp_version, snmp_username, snmp_password, snmp_port, snmp_timeout, disabled, availability_method, 
-		ping_method, ping_port, ping_timeout, ping_retries, snmp_auth_protocol, snmp_priv_passphrase, 
-		snmp_priv_protocol, snmp_context */
-function query_location( $host ) {
-	global $config;
-	$snmpsyslocation		 = ".1.3.6.1.2.1.1.6.0"; // system location
-	include_once($config["library_path"] . '/snmp.php');
-
-	$snmp_location = cacti_snmp_get( $host['hostname'], $host['snmp_community'], $snmpsyslocation, 
-		$host['snmp_version'], $host['snmp_username'], $host['snmp_password'], 
-		$host['snmp_auth_protocol'], $host['snmp_priv_passphrase'], $host['snmp_priv_protocol'], 
-		$host['snmp_context'] ); 
-
-map_log("\n\ndevice: ".$host['hostname']." ".$snmp_location );
-
-	return $snmp_location;
-}
-
 // return the full address, lat, lon
 function geocod_address( $snmp_location ) {
 	$maptools = read_config_option('map_tools');
@@ -291,7 +271,12 @@ function geocod_address( $snmp_location ) {
 		} 
 	} else if( count($address) == 9 ) { 
 		// gps coordinate
-		$gpslocation = GoogleReverGeocode( $address[7], $address[8] );
+		if( $maptools == '0' ) {
+			$gpslocation = GoogleReverGeocode( $address[7], $address[8] );
+		} else if( $maptools == '1' ) {
+			$gpslocation = OpenStreetReverseGeocode( $address[7], $address[8] );
+		}
+		
 	} else {
 		map_log("Snmp location error " );
 		$gpslocation = false;
@@ -306,6 +291,7 @@ function map_setup_table () {
 }
 
 function map_api_device_new( $host ) {
+	$snmp_sysLocation = ".1.3.6.1.2.1.1.6.0";
 /* id, hostname, snmp_community, 
 		snmp_version, snmp_username, snmp_password, snmp_port, snmp_timeout, disabled, availability_method, 
 		ping_method, ping_port, ping_timeout, ping_retries, snmp_auth_protocol, snmp_priv_passphrase, 
@@ -317,7 +303,8 @@ function map_api_device_new( $host ) {
 	}
 	
 	// device is saved, take the snmplocation to check with database
-	$snmp_location = query_location ( $host );
+	//$snmp_location = db_fetch_cell("SELECT snmp_sysLocation FROM host WHERE id='".$host['id']."'" );
+	$snmp_location = cacti_snmp_get( $host['hostname'], $host['snmp_community'], $snmp_sysLocation, $host['snmp_version'], $host['snmp_username'], $host['snmp_password'], $host['snmp_auth_protocol'], $host['snmp_priv_passphrase'], $host['snmp_priv_protocol'], $host['snmp_context'] ); 
 
 	// geocod it, many Google query but the address is the geocoded one
 	/* array format:
@@ -326,6 +313,12 @@ function map_api_device_new( $host ) {
                     $formatted_address,
 					$location (array of full detail)
 */
+	if( $snmp_location == 'U' || empty($snmp_location) ) {
+map_log("error host: " . $host['hostname'] ." (".$host['id'].")\n");
+		return $host;
+	}
+map_log("host: " . $host['hostname'] ." location: ".$snmp_location." (".$host['id'].")\n");
+	
 	$gpslocation = geocod_address ( $snmp_location );
 
 	if( $gpslocation == false) 
@@ -485,10 +478,33 @@ function GoogleGeocode($address){
 }
 
 function OpenStreetGeocode($address){
+	// http://nominatim.openstreetmap.org/search/chemin pierre-de-plan 4 Lausanne?format=json&addressdetails=1&limit=1&polygon_svg=1
+	/*
+	[{"place_id":"82095265","licence":"Data © OpenStreetMap contributors, ODbL 1.0. http:\/\/www.openstreetmap.org\/copyright","osm_type":"way","osm_id":"46835009","boundingbox":["46.5275177","46.5286706","6.643296","6.6451603"],"lat":"46.52810155","lon":"6.64424499124893","display_name":"Pierre-de-Plan, Chemin de Pierre-de-Plan, Chailly, Lausanne, District de Lausanne, Vaud, 1011, Suisse","class":"man_made","type":"works","importance":0.511,"address":{"address29":"Pierre-de-Plan","road":"Chemin de Pierre-de-Plan","neighbourhood":"Chailly","city":"Lausanne","county":"District de Lausanne","state":"Vaud","postcode":"1011","country":"Suisse","country_code":"ch"},"svg":"M 6.643296 -46.5280323 L 6.6436639 -46.527865200000001 6.6436909 -46.527716699999999 6.6439739 -46.527604500000002 6.6440302 -46.527667100000002 6.6441516 -46.5276183 6.6445688 -46.527548199999998 6.6450363 -46.527522099999999 6.6450765 -46.527517699999997 6.6451603 -46.528054300000001 6.6451038 -46.528148799999997 6.6438793 -46.528670599999998 6.6437815 -46.528624499999999 6.6435271 -46.5285194 6.6434554 -46.5284458 6.64361 -46.528383400000003 Z"}]
+	*/
+	
+	/* jsonv2
+	[{"place_id":"82095265","licence":"Data © OpenStreetMap contributors, ODbL 1.0. http:\/\/www.openstreetmap.org\/copyright","osm_type":"way","osm_id":"46835009","boundingbox":["46.5275177","46.5286706","6.643296","6.6451603"],"lat":"46.52810155","lon":"6.64424499124893","display_name":"Pierre-de-Plan, Chemin de Pierre-de-Plan, Chailly, Lausanne, District de Lausanne, Vaud, 1011, Suisse","place_rank":"30","category":"man_made","type":"works","importance":0.511,"address":{"address29":"Pierre-de-Plan","road":"Chemin de Pierre-de-Plan","neighbourhood":"Chailly","city":"Lausanne","county":"District de Lausanne","state":"Vaud","postcode":"1011","country":"Suisse","country_code":"ch"},"svg":"M 6.643296 -46.5280323 L 6.6436639 -46.527865200000001 6.6436909 -46.527716699999999 6.6439739 -46.527604500000002 6.6440302 -46.527667100000002 6.6441516 -46.5276183 6.6445688 -46.527548199999998 6.6450363 -46.527522099999999 6.6450765 -46.527517699999997 6.6451603 -46.528054300000001 6.6451038 -46.528148799999997 6.6438793 -46.528670599999998 6.6437815 -46.528624499999999 6.6435271 -46.5285194 6.6434554 -46.5284458 6.64361 -46.528383400000003 Z"}]
+	*/
+	
     // url encode the address
-    $address = urlencode($address);
-map_log("Open Street Address: ".$address );
+	$address = str_replace('+', ' ', $address );
 
+map_log("Open Street Address: ".$address );
+	$url = "http://nominatim.openstreetmap.org/search/{$address}?format=jsonv2&addressdetails=1&limit=1&polygon_svg=1";
+
+    // get the json response
+    $resp_json = file_get_contents($url);
+     
+    // decode the json
+    $resp = json_decode($resp_json, true, 512 );
+
+	map_log("URL: " . $url." result: ". var_dump($resp) ."\n");
+}
+
+function OpenStreetReverseGeocode ($lat, $lng ) {
+	// http://nominatim.openstreetmap.org/reverse?format=xml&lat=52.5487429714954&lon=-1.81602098644987&zoom=18&addressdetails=1
+	
 }
 
 function map_log( $text ){

@@ -32,6 +32,10 @@ map_check_upgrade();
 /* remember these search fields in session vars so we don't have to keep passing them around */
 load_current_session_value("hostname", "sess_map_host", "");
 $mapapikey = read_config_option('map_api_key');
+// check if extenddb is present, if so use it
+if( db_fetch_cell("SELECT directory FROM plugin_config WHERE directory='extenddb' AND status=1") != "") {
+	$extenddb = true;
+}
 
 $sql_where  = '';
 $hostname       = get_request_var_request("hostname");
@@ -46,6 +50,7 @@ $sql_query = "SELECT host.id as 'id',
 		host.hostname as 'hostname', sites.latitude as 'lat', sites.longitude as 'lon', sites.address1 as 'address', host.disabled as 'disabled', host.status as 'status'
 		FROM host, sites
 		WHERE host.site_id=sites.id
+		AND IF( $extenddb, host.isPhone='', true)
 		$sql_where 
 		ORDER BY host.id";
 
@@ -78,6 +83,7 @@ function clearFilter() {
 html_start_box("<strong>Filters</strong>", "100%", $colors["header"], "3", "center", "");
 
 ?>
+<meta charset="utf-8"/>
 <tr bgcolor="#<?php print $colors["panel"];?>" class="noprint">
 	<td class="noprint">
 	<form style="padding:0px;margin:0px;" name="form" method="get" action="<?php print $config['url_path'];?>plugins/map/map.php">
@@ -122,20 +128,20 @@ html_start_box("", "100%", $colors["header"], "3", "center", "");
       }
     </style>
 
-    <script src="/cacti1/plugins/map/markerclusterer.js"></script>
-    <script async defer src="https://maps.googleapis.com/maps/api/js?<?php ($mapapikey != NULL)?print 'key='.$mapapikey."&":"" ?>callback=initMap"></script>
-	<script>
+	<script src="/cacti1/plugins/map/markerclusterer.js"></script>
+    <script async defer type="text/javascript" src="https://maps.googleapis.com/maps/api/js?<?php ($mapapikey != NULL)?print 'key='.$mapapikey."&":"" ?>callback=initMap"></script>
+
+	<script defer>
     // auto refresh every 5 minutes
     setTimeout(function() {
     location.reload();
     }, 300000);
 
-	function initMap() {
+	window.initMap = function() {
 		<?php
 		$gpslocation_lati = read_config_option('map_center_gps_lati');
 		$gpslocation_longi = read_config_option('map_center_gps_longi');
 		?>
-//        var center = new google.maps.LatLng(46.52, 6.64);
         var center = new google.maps.LatLng(<?php print $gpslocation_lati .",". $gpslocation_longi ?>);
         var map = new google.maps.Map(document.getElementById('map'), {
           zoom: 10,
@@ -152,7 +158,7 @@ html_start_box("", "100%", $colors["header"], "3", "center", "");
 ?>
 			var marker = new google.maps.Marker( {
 				position: new google.maps.LatLng(<?php print $device['lat'];?>, <?php print $device['lon'];?>),
-				title: '<?php print $device['hostname']. "\\n" . utf8_encode($device['address']);?>',
+				title: "<?php print $device['hostname']. "\\n" . utf8_encode($device['address']);?>",
 				icon: iconBase + '<?php if ($device['disabled'] == 'on') print 'pingrey.png'; else if ($device['status']==1) print 'pin.png'; else if ($device['status']==2) print 'pinblue.png'; else print 'pingreen.png';?>'
 			} );
 			markers.push(marker);
@@ -160,9 +166,9 @@ html_start_box("", "100%", $colors["header"], "3", "center", "");
 		}
 ?>
 		var markerCluster = new MarkerClusterer(map, markers, {imagePath: './images/m'});
+		google.maps.event.addDomListener(window, 'load', initMap);
     }
-    google.maps.event.addDomListener(window, 'load', initMap);
-
+ 
 </script>
   <body>
     <div id="map-container"><div id="map"></div></div>
