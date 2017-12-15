@@ -15,7 +15,6 @@
 ----[ Installation
 
 	To install the plugin, please refer to the Plugin Installation Documentation
-	Rename the directory 'map' under plug-ins
 
 ----[ Possible Bugs?
    
@@ -32,3 +31,4 @@
 1.1.0 use cacti site database for location taken from snmp location in format: country;city;address;floor;room;rack;RU or ;;;floor;room;rack;RU;lat;long the 7 and 8 argument are lat/log
 1.2.0 added support of openstreetmap
 1.2.1 added the usage of extenddb to not display phone on the map
+1.2.2 changed the format of the map center under settings, to be the same as location on a device !

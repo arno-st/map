@@ -126,7 +126,7 @@ function map_config_settings () {
 			),
 		"map_center" => array(
 			"friendly_name" => "Map center",
-			"description" => "Address to where whe should center the map (number,street,city,country).",
+			"description" => "Address to where whe should center the map (country;city;street,number).",
 			"method" => "textbox",
 			"max_length" => 120,
 			"default" => ""
@@ -146,12 +146,14 @@ function map_config_settings () {
 
 	if( get_request_var('action')=='save') {
 		$location = read_config_option('map_center');
+		$location = str_replace( ",", ";", $location );
+		$address = explode( ';', $location ); // Suisse;Lausanne;Chemin de Pierre-de-Plan 4
+
 		$maptools = read_config_option('map_tools');
-		$location = str_replace(' ', '+', $location );
 		if( $maptools == '0' ) {
-			$gpslocation = GoogleGeocode($location);
+			$gpslocation = GoogleGeocode($address);
 		} else if( $maptools == '1' ) {
-			$gpslocation = OpenStreetGeocode($location);
+			$gpslocation = OpenStreetGeocode($address);
 		}
 	 	set_config_option('map_center_gps_lati', $gpslocation[0]);
 	 	set_config_option('map_center_gps_longi', $gpslocation[1]);
@@ -258,13 +260,11 @@ function geocod_address( $snmp_location ) {
 	$snmp_location = str_replace( ",", ";", $snmp_location );
 	$address = explode( ';', $snmp_location ); // Suisse;Lausanne;Chemin de Pierre-de-Plan 4;-1;Local Telecom;;;46.54;6.56
 	if( (count($address) <= 7) && count($address) > 3 ) {
-		$location = $address[2]. "," .$address[1]. "," . $address[0];
-		$location = str_replace(' ', '+', $location );
 		$gpslocation = array();
 		if( $maptools == '0' ) {
-			$gpslocation = GoogleGeocode($location);
+			$gpslocation = GoogleGeocode($address);
 		} else if( $maptools == '1' ) {
-			$gpslocation = OpenStreetGeocode($location);
+			$gpslocation = OpenStreetGeocode($address);
 		}
 		if($gpslocation != false ){
 			$gpslocation[2] = str_replace ("'", " ", $gpslocation[2]); // replace ' by space
@@ -416,9 +416,13 @@ function GoogleReverGeocode ($lat, $lng ) {
 	return $formatted_address;
 }
 
-function GoogleGeocode($address){
+function GoogleGeocode($location){
 	global $config;
 	$mapapikey = read_config_option('map_api_key');
+	// Suisse;Lausanne;Chemin de Pierre-de-Plan 4;-1;Local Telecom;;;46.54;6.56
+	$address = $location[2]. "," .$location[1]. "," . $location[0];
+	$address = str_replace(' ', '+', $address );
+
 	//https://maps.googleapis.com/maps/api/geocode/json?address=4+chemin+pierre+de+plan,+Lausanne,+Suisse&key=AIzaSyAr0rad39hJtQLiRoPqsTstFW9u8kl6PYA
     // url encode the address
     // google map geocode api url
@@ -477,34 +481,178 @@ function GoogleGeocode($address){
     }
 }
 
-function OpenStreetGeocode($address){
+function OpenStreetGeocode($locations){
 	// http://nominatim.openstreetmap.org/search/chemin pierre-de-plan 4 Lausanne?format=json&addressdetails=1&limit=1&polygon_svg=1
-	/*
-	[{"place_id":"82095265","licence":"Data © OpenStreetMap contributors, ODbL 1.0. http:\/\/www.openstreetmap.org\/copyright","osm_type":"way","osm_id":"46835009","boundingbox":["46.5275177","46.5286706","6.643296","6.6451603"],"lat":"46.52810155","lon":"6.64424499124893","display_name":"Pierre-de-Plan, Chemin de Pierre-de-Plan, Chailly, Lausanne, District de Lausanne, Vaud, 1011, Suisse","class":"man_made","type":"works","importance":0.511,"address":{"address29":"Pierre-de-Plan","road":"Chemin de Pierre-de-Plan","neighbourhood":"Chailly","city":"Lausanne","county":"District de Lausanne","state":"Vaud","postcode":"1011","country":"Suisse","country_code":"ch"},"svg":"M 6.643296 -46.5280323 L 6.6436639 -46.527865200000001 6.6436909 -46.527716699999999 6.6439739 -46.527604500000002 6.6440302 -46.527667100000002 6.6441516 -46.5276183 6.6445688 -46.527548199999998 6.6450363 -46.527522099999999 6.6450765 -46.527517699999997 6.6451603 -46.528054300000001 6.6451038 -46.528148799999997 6.6438793 -46.528670599999998 6.6437815 -46.528624499999999 6.6435271 -46.5285194 6.6434554 -46.5284458 6.64361 -46.528383400000003 Z"}]
-	*/
 	
 	/* jsonv2
 	[{"place_id":"82095265","licence":"Data © OpenStreetMap contributors, ODbL 1.0. http:\/\/www.openstreetmap.org\/copyright","osm_type":"way","osm_id":"46835009","boundingbox":["46.5275177","46.5286706","6.643296","6.6451603"],"lat":"46.52810155","lon":"6.64424499124893","display_name":"Pierre-de-Plan, Chemin de Pierre-de-Plan, Chailly, Lausanne, District de Lausanne, Vaud, 1011, Suisse","place_rank":"30","category":"man_made","type":"works","importance":0.511,"address":{"address29":"Pierre-de-Plan","road":"Chemin de Pierre-de-Plan","neighbourhood":"Chailly","city":"Lausanne","county":"District de Lausanne","state":"Vaud","postcode":"1011","country":"Suisse","country_code":"ch"},"svg":"M 6.643296 -46.5280323 L 6.6436639 -46.527865200000001 6.6436909 -46.527716699999999 6.6439739 -46.527604500000002 6.6440302 -46.527667100000002 6.6441516 -46.5276183 6.6445688 -46.527548199999998 6.6450363 -46.527522099999999 6.6450765 -46.527517699999997 6.6451603 -46.528054300000001 6.6451038 -46.528148799999997 6.6438793 -46.528670599999998 6.6437815 -46.528624499999999 6.6435271 -46.5285194 6.6434554 -46.5284458 6.64361 -46.528383400000003 Z"}]
+
+	$ret = db_execute("INSERT INTO sites (name, address1, city, state, postal_code, country, address2, latitude, longitude) VALUES ('"
+		. mysql_real_escape_string($gpslocation[2]) ."','"
+		. mysql_real_escape_string($gpslocation[3]['address1'])." ".$gpslocation[3]['street_number']."','"
+		. $gpslocation[3]['city']."','"
+		. $gpslocation[3]['state']."','"
+		. $gpslocation[3]['postal_code']."','"
+		. $gpslocation[3]['country']."','"
+		. mysql_real_escape_string($gpslocation[3]['address2'])."','"
+		. $gpslocation[0] . "', '"
+		. $gpslocation[1] . "')");
 	*/
-	
+	//// Suisse;Lausanne;Chemin de Pierre-de-Plan 4;-1;Local Telecom;;;46.54;6.56
     // url encode the address
-	$address = str_replace('+', ' ', $address );
+	
+	$address = $locations[2]." ".$locations[1]."%2c".$locations[0];
+	$address = utf8_encode(str_replace( ' ', '%20', $address ));
 
-map_log("Open Street Address: ".$address );
-	$url = "http://nominatim.openstreetmap.org/search/{$address}?format=jsonv2&addressdetails=1&limit=1&polygon_svg=1";
+	$url = "https://nominatim.openstreetmap.org/search/{$address}?format=jsonv2&addressdetails=1&limit=1";
 
-    // get the json response
-    $resp_json = file_get_contents($url);
-     
-    // decode the json
-    $resp = json_decode($resp_json, true, 512 );
+	// Setup headers - I used the same headers from Firefox version 2.0.0.6
+	$header[] = "Accept-Language: en,en-US;q=0.8,fr-FR;q=0.5,fr;q=0.3";
+	$header[] = "User-Agent: Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:45.0) Gecko/20100101 Firefox/45.0";
+	$header[] = "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
 
-	map_log("URL: " . $url." result: ". var_dump($resp) ."\n");
+    $handle = curl_init($url);
+	curl_setopt($handle, CURLOPT_HTTPHEADER, $header); 
+    curl_setopt($handle, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($handle, CURLOPT_FOLLOWLOCATION, true);
+    $html = curl_exec($handle);
+    curl_close($handle);
+
+    libxml_use_internal_errors(true); // Prevent HTML errors from displaying
+   
+    $doc = new DOMDocument();
+    $doc->loadHTML($html);
+	map_log("Doc: " . $doc->textContent."\n");
+    if ($doc) {
+		$location = array();
+		// decode the json
+		$resp = json_decode($doc->textContent, true, 512 );
+
+        if( $resp ) {// get the important data
+			$lati = $resp[0]['lat'];
+			$longi = $resp[0]['lon'];
+
+			$location['address1'] = utf8_decode(mysql_real_escape_string($resp[0]['address']['road']));
+			$location['street_number'] = empty($resp[0]['address']['house_number'])?"":$resp[0]['address']['house_number'];
+			$location['city'] = $resp[0]['address']['city'];
+			$location['postal_code'] = $resp[0]['address']['postcode'];
+			$location['country'] = $resp[0]['address']['country'];
+			$location['state'] = $resp[0]['address']['state'];
+			$location['address2'] = mysql_real_escape_string( $resp[0]['address']['county'] );
+			$location['lat'] = $lati;
+			$location['lon'] = $longi;
+
+			$formatted_address = $location['address1']." ".$location['street_number'].", ".$location['postal_code']. " ".$location['city'].", ".$location['country'];
+			$location['formated_address'] = $formatted_address;
+
+			map_log("location: " . print_r($location, true)."\n");
+		
+		
+		
+			/* array format:
+                    $lati, 
+                    $longi, 
+                    $formatted_address,
+					$location (array of full detail)
+*/
+			$data_arr = array();            
+         
+			array_push(
+				$data_arr, 
+				$lati, 
+				$longi, 
+				$formatted_address,
+				$location
+				);
+			return $data_arr;
+		} else {
+			map_log("OpenStreetmap json error: ".json_last_error() ."\n" );
+			return false;
+		}
+		
+	} else {
+		map_log("OpenStreetmap Geocoding error: ".json_last_error() ."\n" );
+		return false;
+	}
 }
 
 function OpenStreetReverseGeocode ($lat, $lng ) {
-	// http://nominatim.openstreetmap.org/reverse?format=xml&lat=52.5487429714954&lon=-1.81602098644987&zoom=18&addressdetails=1
-	
+	// http://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=46.52810155&lon=6.64424499124893&zoom=18&addressdetails=1
+/* JSONv2
+{"place_id":"74144934","licence":"Data © OpenStreetMap contributors, ODbL 1.0. http:\/\/www.openstreetmap.org\/copyright","osm_type":"way","osm_id":"24634955","lat":"46.52894795","lon":"6.64445024999999","place_rank":"30","category":"leisure","type":"pitch","importance":"0","addresstype":"leisure","display_name":"Stade de La Sallaz, Chemin de Pierre-de-Plan, Chailly, Lausanne, District de Lausanne, Vaud, 1011, Suisse","name":"Stade de La Sallaz","address":{"pitch":"Stade de La Sallaz","road":"Chemin de Pierre-de-Plan","neighbourhood":"Chailly","city":"Lausanne","county":"District de Lausanne","state":"Vaud","postcode":"1011","country":"Suisse","country_code":"ch"},"boundingbox":["46.5285089","46.529387","6.6437265","6.645174"]}
+*/	
+
+	$url = "https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=".$lat."&lon=".$lng."&zoom=18&addressdetails=1";
+
+	// Setup headers - I used the same headers from Firefox version 2.0.0.6
+	$header[] = "Accept-Language: en,en-US;q=0.8,fr-FR;q=0.5,fr;q=0.3";
+	$header[] = "User-Agent: Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:45.0) Gecko/20100101 Firefox/45.0";
+	$header[] = "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
+
+    $handle = curl_init($url);
+	curl_setopt($handle, CURLOPT_HTTPHEADER, $header); 
+    curl_setopt($handle, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($handle, CURLOPT_FOLLOWLOCATION, true);
+    $html = curl_exec($handle);
+    curl_close($handle);
+
+    libxml_use_internal_errors(true); // Prevent HTML errors from displaying
+   
+    $doc = new DOMDocument();
+    $doc->loadHTML($html);
+
+	map_log("Doc: " . $doc->textContent."\n");
+    if ($doc) {
+		$location = array();
+		$resp_json = file_get_contents($url);
+
+    // decode the json
+		$resp = json_decode($doc->textContent, true, 512 );
+     
+		map_log("URL: " . $url." result: ". print_r($resp, true) ."\n");
+    // response status will be 'OK', if able to geocode given address 
+		if($resp){
+			// get the important data
+			$lati = $resp[0]['lat'];
+			$longi = $resp[0]['lon'];
+			$formatted_address = $resp[0]['address']['road']." ".empty($resp[0]['address']['house_number'])?"":$resp[0]['address']['house_number'].", ".$resp[0]['address']['postcode']." ".$resp[0]['address']['city'].", ".$resp[0]['address']['country'];
+
+			array_push( $location,
+				mysql_real_escape_string( $formatted_address ),
+				mysql_real_escape_string( $resp[0]['address']['road'] )." ".empty($resp[0]['address']['house_number'])?"":$resp[0]['address']['house_number'],
+				$resp[0]['address']['city'],
+				$resp[0]['address']['postcode'],
+				$resp[0]['address']['country'],
+				$resp[0]['address']['state'],
+				$lati,
+				$longi
+			);
+		
+			/* array format:
+                    $lati, 
+                    $longi, 
+                    $formatted_address,
+					$location (array of full detail)
+*/
+			$data_arr = array();            
+         
+			array_push(
+				$data_arr, 
+				$lati, 
+				$longi, 
+				$formatted_address,
+				$location
+				);
+             
+			return $data_arr;
+		} else {
+			map_log("OpenStreetmap reverse Geocoding error: ".print_r($resp, true) );
+			return false;
+		}
+	} else {
+		map_log("OpenStreetmap reverse Geocoding error: ".json_last_error() ."\n" );
+		return false;
+	}
 }
 
 function map_log( $text ){
