@@ -600,33 +600,32 @@ function OpenStreetReverseGeocode ($lat, $lng ) {
    
     $doc = new DOMDocument();
     $doc->loadHTML($html);
-
 	map_log("Doc: " . $doc->textContent."\n");
     if ($doc) {
 		$location = array();
-		$resp_json = file_get_contents($url);
-
-    // decode the json
+		// decode the json
 		$resp = json_decode($doc->textContent, true, 512 );
-     
-		map_log("URL: " . $url." result: ". print_r($resp, true) ."\n");
-    // response status will be 'OK', if able to geocode given address 
-		if($resp){
-			// get the important data
+
+        if( $resp ) {// get the important data
 			$lati = $resp[0]['lat'];
 			$longi = $resp[0]['lon'];
-			$formatted_address = $resp[0]['address']['road']." ".empty($resp[0]['address']['house_number'])?"":$resp[0]['address']['house_number'].", ".$resp[0]['address']['postcode']." ".$resp[0]['address']['city'].", ".$resp[0]['address']['country'];
 
-			array_push( $location,
-				mysql_real_escape_string( $formatted_address ),
-				mysql_real_escape_string( $resp[0]['address']['road'] )." ".empty($resp[0]['address']['house_number'])?"":$resp[0]['address']['house_number'],
-				$resp[0]['address']['city'],
-				$resp[0]['address']['postcode'],
-				$resp[0]['address']['country'],
-				$resp[0]['address']['state'],
-				$lati,
-				$longi
-			);
+			$location['address1'] = utf8_decode(mysql_real_escape_string($resp[0]['address']['road']));
+			$location['street_number'] = empty($resp[0]['address']['house_number'])?"":$resp[0]['address']['house_number'];
+			$location['city'] = $resp[0]['address']['city'];
+			$location['postal_code'] = $resp[0]['address']['postcode'];
+			$location['country'] = $resp[0]['address']['country'];
+			$location['state'] = $resp[0]['address']['state'];
+			$location['address2'] = mysql_real_escape_string( $resp[0]['address']['county'] );
+			$location['lat'] = $lati;
+			$location['lon'] = $longi;
+
+			$formatted_address = $location['address1']." ".$location['street_number'].", ".$location['postal_code']. " ".$location['city'].", ".$location['country'];
+			$location['formated_address'] = $formatted_address;
+
+			map_log("location: " . print_r($location, true)."\n");
+		
+		
 		
 			/* array format:
                     $lati, 
@@ -643,14 +642,14 @@ function OpenStreetReverseGeocode ($lat, $lng ) {
 				$formatted_address,
 				$location
 				);
-             
 			return $data_arr;
 		} else {
-			map_log("OpenStreetmap reverse Geocoding error: ".print_r($resp, true) );
+			map_log("OpenStreetmap json error: ".json_last_error() ."\n" );
 			return false;
 		}
+		
 	} else {
-		map_log("OpenStreetmap reverse Geocoding error: ".json_last_error() ."\n" );
+		map_log("OpenStreetmap Geocoding error: ".json_last_error() ."\n" );
 		return false;
 	}
 }
