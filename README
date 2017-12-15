@@ -17,7 +17,9 @@
 	To install the plugin, please refer to the Plugin Installation Documentation
 
 ----[ Possible Bugs?
-   
+   Do not change from openstreet map to Googlemap or the other way arround, 
+   it's not possible to have the same format or location on both system.
+   If you wan't to change you have to clear the site database and rebuild it
 
 ----[ Future Changes
 
