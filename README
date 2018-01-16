@@ -3,34 +3,41 @@
     Author ......... Arno Streuli
     Contact ........ astreuli@gmail.com
     Home Site ...... http://cactiusers.org
-    Program ........ Map for Cacti
-    Purpose ........ Display all device on a Google Map
+    Program ........ Network Link Discovery for Cacti
+    Purpose ........ Network Link Discovery
 
 *******************************************************************************/
 
 ----[ Purpose
 
-	This plugin Display all device in a Google map.
+	This plugin is for scanning the network and follow the CDP discovered host, creating graph of all uplink.
 
 ----[ Installation
 
 	To install the plugin, please refer to the Plugin Installation Documentation
 
+	linkdiscovery requires the Settings plugin to be installed at least, but ideally thold and monitor too
+    
 ----[ Possible Bugs?
-   Do not change from openstreet map to Googlemap or the other way arround, 
-   it's not possible to have the same format or location on both system.
-   If you wan't to change you have to clear the site database and rebuild it
+   
+    The way you can call thold from another plugin: it create a threshold based on all your template, as long as it fit your interface. Example: if you have a traffic threshold and a status threshold, both will be created !
+	It's a simple way of doing it, and not very good. I'm planning to create better way, but that require to write directly into cacti database, without calling thold plugin
+	
+	On slow link it can crash you poller process, so I advice to disable slow link device
+	If you find a problem, let me know!!! http://bugs.cacti.net
 
 ----[ Future Changes
 
 	Got any ideas or complaints, please e-mail me!
 
-
 ----[ Changelog
 
-1.0.2 The snmp location format change to include GPS value in the following format: Country;City;Street_Building;Floor;Room;Rack;RU;Lat;Long
-1.0.3 check if the device is snmp enable otherwise do not try to find the location
-1.1.0 use cacti site database for location taken from snmp location in format: country;city;address;floor;room;rack;RU or ;;;floor;room;rack;RU;lat;long the 7 and 8 argument are lat/log
-1.2.0 added support of openstreetmap
-1.2.1 added the usage of extenddb to not display phone on the map
-1.2.2 changed the format of the map center under settings, to be the same as location on a device !
+0.2	Added the Switch/router equipement type into the comment
+0.3 Added a search based on destination hostname on the discover page
+0.4 Addeds option for LLDP support
+1.0 SCacti 1.x Compliant
+1.0.2 added optional graph for non unicast packet
+1.0.3 added the option to keep trace of IP phone, and keep the phone number. And keep WiFi AP monitored with ping
+1.1.0 if extenddb is present we keep serial_no and type into the extention of the DB
+1.1.1 added the management of the flag isPhone if extenddb is present
+1.2.0 use automation templates to define what Device template has to be applied, and in the setting -< linkdiscovery just enable or disable grpah creation

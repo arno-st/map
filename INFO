@@ -1,7 +1,7 @@
 [info]
-name = map
-version = 1.2.2
-longname = GPS mapping
+name = linkdiscovery
+version = 1.2.0
+longname = Network Link Discovery
 author = Arno Streuli
 email = astreuli@gmail.com
 homepage = http://www.cacti.net

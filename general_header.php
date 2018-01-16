@@ -56,7 +56,7 @@ if (read_config_option("auth_method") != 0) {
 <html>
 <head>
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title><?php print (isset($title) ? $title : "Map");?></title>
+	<title><?php print (isset($title) ? $title : "CDP Link Discovery");?></title>
 	<link href="<?php echo $config['url_path'];?>include/main.css" rel="stylesheet">
 	<link href="<?php echo $config['url_path'];?>images/favicon.ico" rel="shortcut icon"/>
 	<script type="text/javascript" src="<?php echo $config['url_path']; ?>include/layout.js"></script>
