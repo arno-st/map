@@ -288,25 +288,6 @@ function map_setup_table () {
 	global $config, $database_default;
 	include_once($config["library_path"] . "/database.php");
 
-		$data = array();
-	$data['columns'][] = array('name' => 'id', 'type' => 'int(12)', 'NULL' => false, 'auto_increment' => true);
-	$data['columns'][] = array('name' => 'address', 'type' => 'varchar(150)', 'NULL' => false, 'default' => '');
-	$data['columns'][] = array('name' => 'lat', 'type' => 'float(10,6)', 'NULL' => false , 'default' => '0');
-	$data['columns'][] = array('name' => 'lon', 'type' => 'float(10,6)', 'NULL' => false, 'default' => '0');
-	$data['type'] = 'MyISAM';
-	$data['primary'] = 'id';
-	$data['keys'][] = array('name' => 'id', 'columns' => 'id');
-	$data['comment'] = 'Plugin map - Table of map hosts coordinate';
-	api_plugin_db_table_create('map', 'plugin_map_coordinate', $data);
-
-	$data = array();
-	$data['columns'][] = array('name' => 'host_id', 'type' => 'mediumint(8)', 'NULL' => false, 'default' => '0');
-	$data['columns'][] = array('name' => 'address_id', 'type' => 'int(12)', 'NULL' => false, 'default' => '0');
-	$data['type'] = 'MyISAM';
-	$data['primary'] = "host_id`,`address_id";
-	$data['comment'] = 'Plugin map - Table of GPS coordinate';
-	api_plugin_db_table_create('map', 'plugin_map_host', $data);
-
 }
 
 function map_api_device_new( $host ) {
