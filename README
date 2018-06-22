@@ -32,3 +32,4 @@
 1.2.0 added support of openstreetmap
 1.2.1 added the usage of extenddb to not display phone on the map
 1.2.2 changed the format of the map center under settings, to be the same as location on a device !
+1.2.3 Added the option to geocode only selected device under Management -> devices list

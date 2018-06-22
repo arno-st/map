@@ -26,10 +26,15 @@ function plugin_map_install () {
 	api_plugin_register_hook('map', 'top_header_tabs', 'map_show_tab', 'setup.php');
 	api_plugin_register_hook('map', 'top_graph_header_tabs', 'map_show_tab', 'setup.php');
 	api_plugin_register_hook('map', 'draw_navigation_text', 'map_draw_navigation_text', 'setup.php');
-	api_plugin_register_hook('map', 'config_settings', 'map_config_settings', 'setup.php'); // personl settings info
+	api_plugin_register_hook('map', 'config_settings', 'map_config_settings', 'setup.php'); // personal settings info
 	api_plugin_register_hook('map', 'api_device_new', 'map_api_device_new', 'setup.php');
 	api_plugin_register_hook('map', 'utilities_action', 'map_utilities_action', 'setup.php');
 	api_plugin_register_hook('map', 'utilities_list', 'map_utilities_list', 'setup.php');
+
+// Device action
+    api_plugin_register_hook('map', 'device_action_array', 'map_device_action_array', 'setup.php');
+    api_plugin_register_hook('map', 'device_action_execute', 'map_device_action_execute', 'setup.php');
+    api_plugin_register_hook('map', 'device_action_prepare', 'map_device_action_prepare', 'setup.php');
 
 	api_plugin_register_realm('map', 'map.php', 'Plugin -> Map', 1);
 
@@ -716,4 +721,59 @@ function formatedJson( $result ) {
 		}
 	return $location;
 }
+
+function map_device_action_execute($action) {
+        global $config;
+
+        if ($action != 'map_geocode' ) {
+                return $action;
+        }
+
+        $selected_items = sanitize_unserialize_selected_items(get_nfilter_request_var('selected_items'));
+
+        if ($selected_items != false) {
+                if ($action == 'map_geocode' ) {
+                        for ($i = 0; ($i < count($selected_items)); $i++) {
+								if ($action == 'map_geocode') {
+									$dbquery = db_fetch_assoc("SELECT * FROM host WHERE id=".$selected_items[$i]);
+map_log("Rebuild Mapping: ".$selected_items[$i]." - ".print_r($dbquery[0])." - ".$dbquery[0]['description']."\n");
+
+										map_api_device_new($dbquery[0]);
+                                }
+                        }
+                 }
+        }
+
+        return $action;
+}
+
+function map_device_action_prepare($save) {
+        global $host_list;
+
+        $action = $save['drp_action'];
+
+        if ($action != 'map_geocode' ) {
+                return $save;
+        }
+
+        if ($action == 'map_geocode' ) {
+                if ($action == 'map_geocode') {
+                        $action_description = 'Geocode';
+                }
+
+                print "<tr>
+                        <td colspan='2' class='even'>
+                                <p>" . __('Click \'Continue\' to %s on these Device(s)', $action_description) . "</p>
+                                <p><div class='itemlist'><ul>" . $save['host_list'] . "</ul></div></p>
+                        </td>
+                </tr>";
+        }
+}
+
+function map_device_action_array($device_action_array) {
+        $device_action_array['map_geocode'] = __('Geocode Device');
+
+        return $device_action_array;
+}
+
 ?>
