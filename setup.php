@@ -383,7 +383,8 @@ function GoogleReverGeocode ($lat, $lng ) {
 		// location as array
 		$location = array();
 		$location = formatedJson( $resp['results'][0] );
- 
+	map_log("Google location: " . print_r($location, true)."\n");
+
         // verify if data is complete
         $data_arr = array();            
         if($lati && $longi && $formatted_address){
@@ -452,6 +453,8 @@ function GoogleGeocode($location){
 
 		// location as array
 		$location = formatedJson( $resp['results'][0] );
+
+	map_log("Google location: " . print_r($location, true)."\n");
  
         // verify if data is complete
         // put the data in the array
@@ -557,10 +560,8 @@ function OpenStreetGeocode($locations){
 			$formatted_address = $location['address1']." ".$location['street_number'].", ".$location['postal_code']. " ".$location['city'].", ".$location['country'];
 			$location['formated_address'] = $formatted_address;
 
-			map_log("location: " . print_r($location, true)."\n");
-		
-		
-		
+			map_log("OSM location: " . print_r($location, true)."\n");
+				
 			/* array format:
                     $lati, 
                     $longi, 
@@ -643,7 +644,7 @@ function OpenStreetReverseGeocode ($lat, $lng ) {
 			$formatted_address = $location['address1']." ".$location['street_number'].", ".$location['postal_code']. " ".$location['city'].", ".$location['country'];
 			$location['formated_address'] = $formatted_address;
 
-			map_log("location: " . print_r($location, true)."\n");
+			map_log("OSM location: " . print_r($location, true)."\n");
 		
 		
 		
