@@ -35,7 +35,7 @@ $mapapikey = read_config_option('map_api_key');
 // check if extenddb is present, if so use it
 if( db_fetch_cell("SELECT directory FROM plugin_config WHERE directory='extenddb' AND status=1") != "") {
 	$extenddb = true;
-}
+} else $extenddb = false;
 
 $sql_where  = '';
 $hostname       = get_request_var_request("hostname");
