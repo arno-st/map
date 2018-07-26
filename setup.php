@@ -152,7 +152,7 @@ function map_config_settings () {
 	if( get_request_var('action')=='save') {
 		$location = read_config_option('map_center');
 		$location = str_replace( ",", ";", $location );
-		$address = explode( ';', $location ); // Suisse;Lausanne;Chemin de Pierre-de-Plan 4
+		$address = explode( ';', $location); // Suisse;Lausanne;Chemin de Pierre-de-Plan 4
 
 		$maptools = read_config_option('map_tools');
 		if( $maptools == '0' ) {
@@ -160,8 +160,10 @@ function map_config_settings () {
 		} else if( $maptools == '1' ) {
 			$gpslocation = OpenStreetGeocode($address);
 		}
-	 	set_config_option('map_center_gps_lati', $gpslocation[0]);
-	 	set_config_option('map_center_gps_longi', $gpslocation[1]);
+	 	if( $gpslocation != false ) {
+			set_config_option('map_center_gps_lati', $gpslocation[0]);
+			set_config_option('map_center_gps_longi', $gpslocation[1]);
+		}
 	}
 
 	// https://maps.googleapis.com/maps/api/geocode/json?latlng=46.51157,6.62179&amp;key=AIzaSyCpw0hNO2ZzIxKb9cTyrSPEN3ADvUTc5Xc&amp
@@ -256,39 +258,6 @@ map_log("host: " . $host['hostname'] ." location: ".$snmp_location."\n");
 	return $action;
 }
 
-// return the full address, lat, lon
-function geocod_address( $snmp_location ) {
-	$maptools = read_config_option('map_tools');
-
-	// parse google map for geocoding
-	// location format: Country;City;Street_Building;Floor;Room;Rack;RU;Lat;lon
-	$snmp_location = str_replace( ",", ";", $snmp_location );
-	$address = explode( ';', $snmp_location ); // Suisse;Lausanne;Chemin de Pierre-de-Plan 4;-1;Local Telecom;;;46.54;6.56
-	if( (count($address) <= 7) && count($address) > 3 ) {
-		$gpslocation = array();
-		if( $maptools == '0' ) {
-			$gpslocation = GoogleGeocode($address);
-		} else if( $maptools == '1' ) {
-			$gpslocation = OpenStreetGeocode($address);
-		}
-		if($gpslocation != false ){
-			$gpslocation[2] = str_replace ("'", " ", $gpslocation[2]); // replace ' by space
-		} 
-	} else if( count($address) == 9 ) { 
-		// gps coordinate
-		if( $maptools == '0' ) {
-			$gpslocation = GoogleReverGeocode( $address[7], $address[8] );
-		} else if( $maptools == '1' ) {
-			$gpslocation = OpenStreetReverseGeocode( $address[7], $address[8] );
-		}
-		
-	} else {
-		map_log("Snmp location error " );
-		$gpslocation = false;
-	}
-	return $gpslocation;
-}
-
 function map_setup_table () {
 	global $config, $database_default;
 	include_once($config["library_path"] . "/database.php");
@@ -334,7 +303,7 @@ map_log("host: " . $host['hostname'] ." location: ".$snmp_location." (".$host['i
 	if( $address_id == 0) // record does not exist
 	{
 		// save to new table with id and location
-		$ret = db_execute("INSERT INTO sites (name, address1, city, state, postal_code, country, address2, latitude, longitude) VALUES ('"
+		$ret = db_execute("INSERT INTO sites (name, address1, city, state, postal_code, country, address2, latitude, longitude, notes) VALUES ('"
 		. mysql_real_escape_string($gpslocation[2]) ."','"
 		. mysql_real_escape_string($gpslocation[3]['address1'])." ".$gpslocation[3]['street_number']."','"
 		. $gpslocation[3]['city']."','"
@@ -343,7 +312,8 @@ map_log("host: " . $host['hostname'] ." location: ".$snmp_location." (".$host['i
 		. $gpslocation[3]['country']."','"
 		. mysql_real_escape_string($gpslocation[3]['address2'])."','"
 		. $gpslocation[0] . "', '"
-		. $gpslocation[1] . "')");
+		. $gpslocation[1] . "', '"
+		. $gpslocation[3]['types'][0]."' )");
 	} 
 
    // and add  host to host_table
@@ -353,6 +323,39 @@ map_log("host: " . $host['hostname'] ." location: ".$snmp_location." (".$host['i
 	}
 	
 	return $host;
+}
+
+// return the full address, lat, lon
+function geocod_address( $snmp_location ) {
+	$maptools = read_config_option('map_tools');
+
+	// parse google map for geocoding
+	// location format: Country;City;Street_Building;Floor;Room;Rack;RU;Lat;lon
+	$snmp_location = str_replace( ",", ";", $snmp_location );
+	$address = explode( ';', $snmp_location ); // Suisse;Lausanne;Chemin de Pierre-de-Plan 4;-1;Local Telecom;;;46.54;6.56
+	if( (count($address) <= 7) && count($address) > 3 ) {
+		$gpslocation = array();
+		if( $maptools == '0' ) {
+			$gpslocation = GoogleGeocode($address);
+		} else if( $maptools == '1' ) {
+			$gpslocation = OpenStreetGeocode($address);
+		}
+		if($gpslocation != false ){
+			$gpslocation[2] = str_replace ("'", " ", $gpslocation[2]); // replace ' by space
+		} 
+	} else if( count($address) == 9 ) { 
+		// gps coordinate
+		if( $maptools == '0' ) {
+			$gpslocation = GoogleReverGeocode( $address[7], $address[8] );
+		} else if( $maptools == '1' ) {
+			$gpslocation = OpenStreetReverseGeocode( $address[7], $address[8] );
+		}
+		
+	} else {
+		map_log("Snmp location error " );
+		$gpslocation = false;
+	}
+	return $gpslocation;
 }
 
 // return formatted_address
@@ -383,8 +386,7 @@ function GoogleReverGeocode ($lat, $lng ) {
 		// location as array
 		$location = array();
 		$location = formatedJson( $resp['results'][0] );
-	map_log("Google location: " . print_r($location, true)."\n");
-
+ 
         // verify if data is complete
         $data_arr = array();            
         if($lati && $longi && $formatted_address){
@@ -454,8 +456,6 @@ function GoogleGeocode($location){
 		// location as array
 		$location = formatedJson( $resp['results'][0] );
 
-	map_log("Google location: " . print_r($location, true)."\n");
- 
         // verify if data is complete
         // put the data in the array
         $data_arr = array();            
@@ -510,9 +510,9 @@ function OpenStreetGeocode($locations){
     // url encode the address
 	
 	$address = $locations[2]." ".$locations[1]."%2c".$locations[0];
-	$address = utf8_encode(str_replace( ' ', '%20', $address ));
+	$address = str_replace( ' ', '%20', $address);
 
-	$url = "https://nominatim.openstreetmap.org/search/{$address}?format=jsonv2&addressdetails=1&limit=1";
+	$url = "https://nominatim.openstreetmap.org/search/". $address. "?format=jsonv2&addressdetails=1&limit=1";
 
 	// Setup headers - I used the same headers from Firefox version 2.0.0.6
 	$header[] = "Accept-Language: en,en-US;q=0.8,fr-FR;q=0.5,fr;q=0.3";
@@ -530,7 +530,7 @@ function OpenStreetGeocode($locations){
    
     $doc = new DOMDocument();
     $doc->loadHTML($html);
-	map_log("Doc: " . $doc->textContent."\n");
+
     if ($doc) {
 		$location = array();
 		// decode the json
@@ -539,6 +539,7 @@ function OpenStreetGeocode($locations){
         if( $resp ) {// get the important data
 			$lati = $resp[0]['lat'];
 			$longi = $resp[0]['lon'];
+
 			if( empty($resp[0]['address']['road']) ) {
 				$location['address1'] = mysql_real_escape_string(utf8_decode($resp[0]['address']['pedestrian']));
 			} else {
@@ -546,7 +547,9 @@ function OpenStreetGeocode($locations){
 			}
 			$location['street_number'] = empty($resp[0]['address']['house_number'])?"":$resp[0]['address']['house_number'];
 			if ( empty($resp[0]['address']['city']) ) { 
-				$location['city'] = $resp[0]['address']['village'];
+				if ( empty($resp[0]['address']['town']) ) {
+					$location['city'] = $resp[0]['address']['neighbourhood'];
+				} else $location['city'] = $resp[0]['address']['town'];
 			} else {
 				$location['city'] = $resp[0]['address']['city'];
 			}
@@ -556,12 +559,11 @@ function OpenStreetGeocode($locations){
 			$location['address2'] = mysql_real_escape_string( $resp[0]['address']['county'] );
 			$location['lat'] = $lati;
 			$location['lon'] = $longi;
+			$location['types'][0] = $resp[0]['type'];
 
 			$formatted_address = $location['address1']." ".$location['street_number'].", ".$location['postal_code']. " ".$location['city'].", ".$location['country'];
 			$location['formated_address'] = $formatted_address;
 
-			map_log("OSM location: " . print_r($location, true)."\n");
-				
 			/* array format:
                     $lati, 
                     $longi, 
@@ -613,41 +615,43 @@ function OpenStreetReverseGeocode ($lat, $lng ) {
    
     $doc = new DOMDocument();
     $doc->loadHTML($html);
-	map_log("Doc: " . $doc->textContent."\n");
+
     if ($doc) {
 		$location = array();
 		// decode the json
 		$resp = json_decode($doc->textContent, true, 512 );
 
         if( $resp ) {// get the important data
-			$lati = $resp[0]['lat'];
-			$longi = $resp[0]['lon'];
+			$lati = $resp['lat'];
+			$longi = $resp['lon'];
 
-			if( empty($resp[0]['address']['road']) ) {
-				$location['address1'] = mysql_real_escape_string(utf8_decode($resp[0]['address']['pedestrian']));
+			if( empty($resp['address']['road']) ) {
+				$location['address1'] = mysql_real_escape_string(utf8_decode($resp['address']['pedestrian']));
 			} else {
-				$location['address1'] = mysql_real_escape_string(utf8_decode($resp[0]['address']['road']));
+				$location['address1'] = mysql_real_escape_string(utf8_decode($resp['address']['road']));
 			}
-			$location['street_number'] = empty($resp[0]['address']['house_number'])?"":$resp[0]['address']['house_number'];
-			if ( empty($resp[0]['address']['city']) ) { 
-				$location['city'] = $resp[0]['address']['village'];
-			} else {
-				$location['city'] = $resp[0]['address']['city'];
-			}
-			$location['postal_code'] = $resp[0]['address']['postcode'];
-			$location['country'] = $resp[0]['address']['country'];
-			$location['state'] = $resp[0]['address']['state'];
-			$location['address2'] = mysql_real_escape_string( $resp[0]['address']['county'] );
+			$location['street_number'] = empty($resp['address']['house_number'])?"":$resp['address']['house_number'];
+			if ( empty($resp['address']['city']) ) { 
+				if ( empty($resp['address']['town']) ) {
+					if ( empty($resp['address']['neighbourhood']) ) {
+						if ( empty($resp['address']['village']) ) {
+							$location['city'] = "";
+						} else $location['city'] = $resp['address']['village'];
+					} else $location['city'] = $resp['address']['neighbourhood'];
+				} else $location['city'] = $resp['address']['town'];
+			} else $location['city'] = $resp['address']['city'];
+
+			$location['postal_code'] = $resp['address']['postcode'];
+			$location['country'] = $resp['address']['country'];
+			$location['state'] = $resp['address']['state'];
+			$location['address2'] = mysql_real_escape_string( $resp['address']['county'] );
 			$location['lat'] = $lati;
 			$location['lon'] = $longi;
+			$location['types'][0] = $resp['type'];
 
 			$formatted_address = $location['address1']." ".$location['street_number'].", ".$location['postal_code']. " ".$location['city'].", ".$location['country'];
 			$location['formated_address'] = $formatted_address;
 
-			map_log("OSM location: " . print_r($location, true)."\n");
-		
-		
-		
 			/* array format:
                     $lati, 
                     $longi, 
