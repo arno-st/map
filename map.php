@@ -26,16 +26,16 @@ $guest_account = true;
 chdir('../../');
 include("./include/auth.php");
 
-map_setup_table();
 map_check_upgrade();
 
 /* remember these search fields in session vars so we don't have to keep passing them around */
 load_current_session_value("hostname", "sess_map_host", "");
 $mapapikey = read_config_option('map_api_key');
+$maptools = read_config_option('map_tools');
 // check if extenddb is present, if so use it
 if( db_fetch_cell("SELECT directory FROM plugin_config WHERE directory='extenddb' AND status=1") != "") {
 	$extenddb = true;
-} else $extenddb = false;
+}
 
 $sql_where  = '';
 $hostname       = get_request_var_request("hostname");
@@ -52,10 +52,12 @@ $sql_query = "SELECT host.id as 'id',
 		WHERE host.site_id=sites.id
 		AND IF( $extenddb, host.isPhone='', true)
 		$sql_where 
-		ORDER BY host.id";
+		ORDER BY host.id
+		";
 
 $result = db_fetch_assoc($sql_query);
 ?>
+
 <script type="text/javascript">
 <!--
 
@@ -109,8 +111,10 @@ html_start_box("<strong>Filters</strong>", "100%", $colors["header"], "3", "cent
 html_end_box();
 
 html_start_box("", "100%", $colors["header"], "3", "center", "");
-?>
 
+if( $maptools == '0' ) {
+//************************************************************************* GoogleMap
+	?>
     <style>
       #map-container {
         padding: 6px;
@@ -175,9 +179,90 @@ html_start_box("", "100%", $colors["header"], "3", "center", "");
   </body>
 
 <?php
+} else {
+//************************************************ OpenStreetMAP
+?>
+	<?php
+	if( count($result > 1){
+		$gpslocation_lati = read_config_option('map_center_gps_lati');
+		$gpslocation_longi = read_config_option('map_center_gps_longi');
+	} else {
+		$gpslocation_lati = $result[0]['lat'];
+		$gpslocation_longi = $result[0]['lon'];;
+	}
+	?>
 
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.3/dist/leaflet.css" integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ==" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.3.3/dist/leaflet.js" integrity="sha512-tAGcCfR4Sc5ZP5ZoVz0quoZDYX5aCtEm/eu1KhSLj2c9eFrylXZknQYmxUssFaVJKvvc0dJQixhGjG2yXWiV9Q==" crossorigin=""></script>
+
+	<link rel="stylesheet" href="/cacti1/plugins/map/MarkerCluster.css" />
+	<link rel="stylesheet" href="/cacti1/plugins/map/MarkerCluster.Default.css" />
+	<script src="/cacti1/plugins/map/leaflet.markercluster.js"></script>
+  
+
+<div id="map" style="width: 800px; height: 600px;"></div>
+<script>
+
+    var pingrey = L.icon ({
+    iconUrl: './images/pingrey.png',
+    iconSize: [30,48],
+    iconAnchor: [15,48],
+    });
+
+    var pingreen = L.icon ({
+    iconUrl: './images/pingreen.png',
+    iconSize: [30,48],
+    iconAnchor: [15,48],
+    });
+
+    var pinblue = L.icon ({
+    iconUrl: './images/pinblue.png',
+    iconSize: [30,48],
+    iconAnchor: [15,48],
+    });
+
+    var pinred = L.icon ({
+    iconUrl: './images/pin.png',
+    iconSize: [30,48],
+    iconAnchor: [15,48],
+    });
+
+    var tiles = L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw', {
+        maxZoom: 18,
+        attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, ' +
+            '<a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
+            'Imagery Â© <a href="https://www.mapbox.com/">Mapbox</a>',
+        id: 'mapbox.streets'
+    });
+
+    var mymap = L.map('map', {center: [<?php print $gpslocation_lati .",". $gpslocation_longi ?>], zoom: 13, layers: [tiles]} );
+
+
+	var markersCluster = L.markerClusterGroup();
+<?php
+		foreach( $result as $device ) {
+		// get latitude, longitude and formatted address
+?>
+			var marker = new L.marker([<?php print $device['lat'];?>, <?php print $device['lon'];?>],
+            {title: "<?php print $device['hostname']?>", 
+			icon: icon: '<?php if ($device['disabled'] == 'on') print 'pingrey'; else if ($device['status']==1) print 'pinred'; else if ($device['status']==2) print 'pinblue'; else print 'pingreen';?> };			);
+
+			marker.bindPopup( "<?php print $device['hostname']. "<br>" . $device['address'];?>" );
+
+		    markersCluster.addLayer(marker);
+
+<?php
+		}
+?>
+		mymap.addLayer(markersCluster);
+
+</script>
+  
+<?php
+}
 html_end_box(false);
 
 bottom_footer();
 
 ?>
+
