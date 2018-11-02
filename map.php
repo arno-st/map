@@ -195,9 +195,9 @@ if( $maptools == '0' ) {
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.3/dist/leaflet.css" integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ==" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.3.3/dist/leaflet.js" integrity="sha512-tAGcCfR4Sc5ZP5ZoVz0quoZDYX5aCtEm/eu1KhSLj2c9eFrylXZknQYmxUssFaVJKvvc0dJQixhGjG2yXWiV9Q==" crossorigin=""></script>
 
-	<link rel="stylesheet" href="/cacti1/plugins/map/MarkerCluster.css" />
-	<link rel="stylesheet" href="/cacti1/plugins/map/MarkerCluster.Default.css" />
-	<script src="/cacti1/plugins/map/leaflet.markercluster.js"></script>
+	<link rel="stylesheet" href="/cacti/plugins/map/MarkerCluster.css">
+	<link rel="stylesheet" href="/cacti/plugins/map/MarkerCluster.Default.css">
+	<script src="/cacti/plugins/map/leaflet.markercluster.js"></script>
   
 
 <div id="map" style="width: 800px; height: 600px;"></div>
@@ -245,7 +245,7 @@ if( $maptools == '0' ) {
 ?>
 			var marker = new L.marker([<?php print $device['lat'];?>, <?php print $device['lon'];?>],
             {title: "<?php print $device['hostname']?>", 
-			icon: icon: '<?php if ($device['disabled'] == 'on') print 'pingrey'; else if ($device['status']==1) print 'pinred'; else if ($device['status']==2) print 'pinblue'; else print 'pingreen';?> };			);
+			icon: <?php if ($device['disabled'] == 'on') print 'pingrey'; else if ($device['status']==1) print 'pinred'; else if ($device['status']==2) print 'pinblue'; else print 'pingreen';?> };);
 
 			marker.bindPopup( "<?php print $device['hostname']. "<br>" . $device['address'];?>" );
 
@@ -256,6 +256,7 @@ if( $maptools == '0' ) {
 ?>
 		mymap.addLayer(markersCluster);
 
+	     setTimeout(function(){ mymap.invalidateSize()}, 100);
 </script>
   
 <?php
