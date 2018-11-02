@@ -82,11 +82,10 @@ function clearFilter() {
 
 <?php
 // TOP DEVICE SELECTION
-html_start_box("<strong>Filters</strong>", "100%", $colors["header"], "3", "center", "");
+html_start_box('<strong>Filters</strong>', '100%', '', '3', 'center', '');
 
 ?>
 <meta charset="utf-8"/>
-<tr bgcolor="#<?php print $colors["panel"];?>" class="noprint">
 	<td class="noprint">
 	<form style="padding:0px;margin:0px;" name="form" method="get" action="<?php print $config['url_path'];?>plugins/map/map.php">
 		<table width="100%" cellpadding="0" cellspacing="0">
@@ -110,7 +109,7 @@ html_start_box("<strong>Filters</strong>", "100%", $colors["header"], "3", "cent
 <?php
 html_end_box();
 
-html_start_box("", "100%", $colors["header"], "3", "center", "");
+html_start_box('', '100%', '', '3', 'center', '');
 
 if( $maptools == '0' ) {
 //************************************************************************* GoogleMap
@@ -132,7 +131,7 @@ if( $maptools == '0' ) {
       }
     </style>
 
-	<script src="/cacti1/plugins/map/markerclusterer.js"></script>
+	<script src="./markerclusterer.js"></script>
     <script async defer type="text/javascript" src="https://maps.googleapis.com/maps/api/js?<?php ($mapapikey != NULL)?print 'key='.$mapapikey."&":"" ?>callback=initMap"></script>
 
 	<script defer>
@@ -181,19 +180,13 @@ if( $maptools == '0' ) {
 <?php
 } else {
 //************************************************ OpenStreetMAP
+	$gpslocation_lati = read_config_option('map_center_gps_lati');
+	$gpslocation_longi = read_config_option('map_center_gps_longi');
 ?>
-	<?php
-	if( count($result > 1){
-		$gpslocation_lati = read_config_option('map_center_gps_lati');
-		$gpslocation_longi = read_config_option('map_center_gps_longi');
-	} else {
-		$gpslocation_lati = $result[0]['lat'];
-		$gpslocation_longi = $result[0]['lon'];;
-	}
-	?>
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.3/dist/leaflet.css" integrity="sha512-Rksm5RenBEKSKFjgI3a41vrjkw4EVPlJ3+OiI65vTjIdo9brlAacEuKOiQ5OFh7cOI1bkDwLqdLw3Zg0cRJAAQ==" crossorigin=""/>
-    <script src="https://unpkg.com/leaflet@1.3.3/dist/leaflet.js" integrity="sha512-tAGcCfR4Sc5ZP5ZoVz0quoZDYX5aCtEm/eu1KhSLj2c9eFrylXZknQYmxUssFaVJKvvc0dJQixhGjG2yXWiV9Q==" crossorigin=""></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.4/dist/leaflet.css" integrity="sha512-puBpdR0798OZvTTbP4A8Ix/l+A4dHDD0DGqYW6RQ+9jxkRFclaxxQb/SJAWZfWAkuyeQUytO7+7N4QKrDh+drA==" crossorigin="">
+    <script src="https://unpkg.com/leaflet@1.3.4/dist/leaflet.js" integrity="sha512-nMMmRyTVoLYqjP9hrbed9S+FzjZHW5gY1TWCHA5ckwXZBadntCNs8kEqAWdrb9O7rxbCaA4lKTIWjDXZxflOcA==" crossorigin=""></script>
+
 
 	<link rel="stylesheet" href="/cacti/plugins/map/MarkerCluster.css">
 	<link rel="stylesheet" href="/cacti/plugins/map/MarkerCluster.Default.css">
@@ -227,7 +220,7 @@ if( $maptools == '0' ) {
     iconAnchor: [15,48],
     });
 
-    var tiles = L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw', {
+    var tiles = L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoiYXJubyIsImEiOiJjajhvbW5mcjQwNHh3MzhxdXR3Y3lrOGJ4In0.Z9KUWZsed2piLTZxwlg0Ng', {
         maxZoom: 18,
         attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, ' +
             '<a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
@@ -245,9 +238,10 @@ if( $maptools == '0' ) {
 ?>
 			var marker = new L.marker([<?php print $device['lat'];?>, <?php print $device['lon'];?>],
             {title: "<?php print $device['hostname']?>", 
-			icon: <?php if ($device['disabled'] == 'on') print 'pingrey'; else if ($device['status']==1) print 'pinred'; else if ($device['status']==2) print 'pinblue'; else print 'pingreen';?> };);
+			icon: <?php if ($device['disabled'] == 'on') print 'pingrey'; else if ($device['status']==1) print 'pinred'; 
+			else if ($device['status']==2) print 'pinblue'; else print 'pingreen';?>} );
 
-			marker.bindPopup( "<?php print $device['hostname']. "<br>" . $device['address'];?>" );
+			marker.bindPopup( "<?php print $device['hostname']. "<br>" . $device['address'];?>");
 
 		    markersCluster.addLayer(marker);
 
@@ -256,7 +250,7 @@ if( $maptools == '0' ) {
 ?>
 		mymap.addLayer(markersCluster);
 
-	     setTimeout(function(){ mymap.invalidateSize()}, 100);
+		setTimeout(function(){ mymap.invalidateSize()}, 100);
 </script>
   
 <?php

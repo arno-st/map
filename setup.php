@@ -192,16 +192,16 @@ function map_draw_navigation_text ($nav) {
 function map_utilities_list () {
 	global $colors;
 	html_header(array("Map Plugin"), 4);
+	form_alternate_row();
 	?>
-	<tr bgcolor="#<?php print $colors["form_alternate1"];?>">
 		<td class="textArea">
 			<a href='utilities.php?action=map_rebuild'>Rebuild sites table</a>
 		</td>
 		<td class="textArea">
 			This will rebuild the sites table from the device list.
 		</td>
-	</tr>
 	<?php
+	form_end_row();
 }
 function map_utilities_action ($action) {
 	// get device list,  where snmp is active
@@ -229,23 +229,23 @@ map_log("host: " . $host['hostname'] ." location: ".$snmp_location."\n");
 					continue;
 
 				// check if this adress is present into the plugin_map_coordinate
-				$address_id = db_fetch_cell("SELECT id FROM sites WHERE name='".mysql_real_escape_string($gpslocation[2])."'" );
+				$address_id = db_fetch_cell("SELECT id FROM sites WHERE name='".$gpslocation[2]."'" );
 				if( $address_id == 0) // record does not exist
 				{
 					// save to new table with id and location
 					$ret = db_execute("INSERT INTO sites (name, address1, city, state, postal_code, country, address2, latitude, longitude) VALUES ('"
-					. mysql_real_escape_string($gpslocation[2]) ."','"
-					. mysql_real_escape_string($gpslocation[3]['address1'])." ".$gpslocation[3]['street_number']."','"
+					. $gpslocation[2] ."','"
+					. $gpslocation[3]['address1']." ".$gpslocation[3]['street_number']."','"
 					. $gpslocation[3]['city']."','"
 					. $gpslocation[3]['state']."','"
 					. $gpslocation[3]['postal_code']."','"
 					. $gpslocation[3]['country']."','"
-					. mysql_real_escape_string($gpslocation[3]['address2'])."','"
+					. $gpslocation[3]['address2']."','"
 					. $gpslocation[0] . "', '"
 					. $gpslocation[1] . "')");
 
 					// and add  host to host_table
-					$address_id = db_fetch_cell("SELECT id FROM sites WHERE name='".mysql_real_escape_string($gpslocation[2])."'" );
+					$address_id = db_fetch_cell("SELECT id FROM sites WHERE name='".$gpslocation[2]."'" );
 					db_execute("UPDATE host SET site_id = ".$address_id. " where id=".$host['id'] );
 				}
 
@@ -304,20 +304,20 @@ map_log("host: " . $host['hostname'] ." location: ".$snmp_location." (".$host['i
 	{
 		// save to new table with id and location
 		$ret = db_execute("INSERT INTO sites (name, address1, city, state, postal_code, country, address2, latitude, longitude, notes) VALUES ('"
-		. mysql_real_escape_string($gpslocation[2]) ."','"
-		. mysql_real_escape_string($gpslocation[3]['address1'])." ".$gpslocation[3]['street_number']."','"
+		. $gpslocation[2] ."','"
+		. $gpslocation[3]['address1']." ".$gpslocation[3]['street_number']."','"
 		. $gpslocation[3]['city']."','"
 		. $gpslocation[3]['state']."','"
 		. $gpslocation[3]['postal_code']."','"
 		. $gpslocation[3]['country']."','"
-		. mysql_real_escape_string($gpslocation[3]['address2'])."','"
+		. $gpslocation[3]['address2']."','"
 		. $gpslocation[0] . "', '"
 		. $gpslocation[1] . "', '"
 		. $gpslocation[3]['types'][0]."' )");
 	} 
 
    // and add  host to host_table
-	$address_id = db_fetch_cell("SELECT id FROM sites WHERE name='".mysql_real_escape_string($gpslocation[2])."'" );
+	$address_id = db_fetch_cell("SELECT id FROM sites WHERE name='".$gpslocation[2]."'" );
 	if ( !empty($address_id) ) {
 		db_execute("UPDATE host SET site_id = ".$address_id. " where id=".$host['id'] );
 	}
@@ -541,9 +541,9 @@ function OpenStreetGeocode($locations){
 			$longi = $resp[0]['lon'];
 
 			if( empty($resp[0]['address']['road']) ) {
-				$location['address1'] = mysql_real_escape_string(utf8_decode($resp[0]['address']['pedestrian']));
+				$location['address1'] = utf8_decode($resp[0]['address']['pedestrian']);
 			} else {
-				$location['address1'] = mysql_real_escape_string(utf8_decode($resp[0]['address']['road']));
+				$location['address1'] = utf8_decode($resp[0]['address']['road']);
 			}
 			$location['street_number'] = empty($resp[0]['address']['house_number'])?"":$resp[0]['address']['house_number'];
 			if ( empty($resp[0]['address']['city']) ) { 
@@ -556,7 +556,7 @@ function OpenStreetGeocode($locations){
 			$location['postal_code'] = $resp[0]['address']['postcode'];
 			$location['country'] = $resp[0]['address']['country'];
 			$location['state'] = $resp[0]['address']['state'];
-			$location['address2'] = mysql_real_escape_string( $resp[0]['address']['county'] );
+			$location['address2'] =  $resp[0]['address']['county'];
 			$location['lat'] = $lati;
 			$location['lon'] = $longi;
 			$location['types'][0] = $resp[0]['type'];
@@ -626,9 +626,9 @@ function OpenStreetReverseGeocode ($lat, $lng ) {
 			$longi = $resp['lon'];
 
 			if( empty($resp['address']['road']) ) {
-				$location['address1'] = mysql_real_escape_string(utf8_decode($resp['address']['pedestrian']));
+				$location['address1'] = utf8_decode($resp['address']['pedestrian']);
 			} else {
-				$location['address1'] = mysql_real_escape_string(utf8_decode($resp['address']['road']));
+				$location['address1'] = utf8_decode($resp['address']['road']);
 			}
 			$location['street_number'] = empty($resp['address']['house_number'])?"":$resp['address']['house_number'];
 			if ( empty($resp['address']['city']) ) { 
@@ -644,7 +644,7 @@ function OpenStreetReverseGeocode ($lat, $lng ) {
 			$location['postal_code'] = $resp['address']['postcode'];
 			$location['country'] = $resp['address']['country'];
 			$location['state'] = $resp['address']['state'];
-			$location['address2'] = mysql_real_escape_string( $resp['address']['county'] );
+			$location['address2'] =  $resp['address']['county'];
 			$location['lat'] = $lati;
 			$location['lon'] = $longi;
 			$location['types'][0] = $resp['type'];
