@@ -250,9 +250,8 @@ if( $maptools == '0' ) {
 ?>
 		mymap.addLayer(markersCluster);
 
-		setTimeout(function(){ mymap.invalidateSize()}, 100);
+	setTimeout(function(){ mymap.invalidateSize()}, 100);
 </script>
-  
 <?php
 }
 html_end_box(false);
