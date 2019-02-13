@@ -47,10 +47,10 @@ if ($hostname != '') {
 general_header();
 
 $sql_query = "SELECT host.id as 'id', 
-		host.hostname as 'hostname', sites.latitude as 'lat', sites.longitude as 'lon', sites.address1 as 'address', host.disabled as 'disabled', host.status as 'status'
+		host.description as 'description', host.hostname as 'hostname', sites.latitude as 'lat', sites.longitude as 'lon', sites.address1 as 'address', host.disabled as 'disabled', host.status as 'status'
 		FROM host, sites
 		WHERE host.site_id=sites.id
-		AND IF( $extenddb, host.isPhone='', true)
+		AND IF( $extenddb, host.isPhone='' OR host.isPhone IS NULL, true)
 		$sql_where 
 		ORDER BY host.id
 		";
@@ -161,7 +161,7 @@ if( $maptools == '0' ) {
 ?>
 			var marker = new google.maps.Marker( {
 				position: new google.maps.LatLng(<?php print $device['lat'];?>, <?php print $device['lon'];?>),
-				title: "<?php print $device['hostname']. "\\n" . utf8_encode($device['address']);?>",
+				title: "<?php print $device['description']. "\\n" . $device['description']. "\\n". utf8_encode($device['address']);?>",
 				icon: iconBase + '<?php if ($device['disabled'] == 'on') print 'pingrey.png'; else if ($device['status']==1) print 'pin.png'; else if ($device['status']==2) print 'pinblue.png'; else print 'pingreen.png';?>'
 			} );
 			markers.push(marker);
@@ -237,11 +237,11 @@ if( $maptools == '0' ) {
 		// get latitude, longitude and formatted address
 ?>
 			var marker = new L.marker([<?php print $device['lat'];?>, <?php print $device['lon'];?>],
-            {title: "<?php print $device['hostname']?>", 
+            {title: "<?php print $device['description']?>", 
 			icon: <?php if ($device['disabled'] == 'on') print 'pingrey'; else if ($device['status']==1) print 'pinred'; 
 			else if ($device['status']==2) print 'pinblue'; else print 'pingreen';?>} );
 
-			marker.bindPopup( "<?php print $device['hostname']. "<br>" . $device['address'];?>");
+			marker.bindPopup( "<?php print $device['description']. "<br>" .$device['hostname']. "<br>" . $device['address'];?>");
 
 		    markersCluster.addLayer(marker);
 
