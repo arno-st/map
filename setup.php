@@ -367,7 +367,7 @@ function GoogleReverGeocode ($lat, $lng ) {
 	else 
 		$url = "https://maps.googleapis.com/maps/api/geocode/json?latlng=".$lat.",".$lng."&sensor=true";
 
-	//https://maps.googleapis.com/maps/api/geocode/json?latlng=46.51157,6.62179&amp;key=AIzaSyCpw0hNO2ZzIxKb9cTyrSPEN3ADvUTc5Xc&amp;sensor=true
+	//https://maps.googleapis.com/maps/api/geocode/json?latlng=46.51157,6.62179&amp;key=Xc&amp;sensor=true
     // get the json response
     $resp_json = file_get_contents($url);
      
@@ -429,7 +429,7 @@ function GoogleGeocode($location){
 	$address = $location[2]. "," .$location[1]. "," . $location[0];
 	$address = str_replace(' ', '+', $address );
 
-	//https://maps.googleapis.com/maps/api/geocode/json?address=4+chemin+pierre+de+plan,+Lausanne,+Suisse&key=AIzaSyAr0rad39hJtQLiRoPqsTstFW9u8kl6PYA
+	//https://maps.googleapis.com/maps/api/geocode/json?address=4+chemin+pierre+de+plan,+Lausanne,+Suisse&key=x
     // url encode the address
     // google map geocode api url
 	if( $mapapikey != null)
