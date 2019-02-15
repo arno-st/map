@@ -119,7 +119,6 @@ function map_config_settings () {
 			"description" => "Define the mapping tools used.",
 			"method" => "drop_array",
 			'array' => array("0" => "GoogleMap", "1" => "OpenStreetMap"),
-//			'array' => array("0" => "GoogleMap"),
 			"default" => "20"
 			),
 		"map_api_key" => array(
@@ -166,7 +165,6 @@ function map_config_settings () {
 		}
 	}
 
-	// https://maps.googleapis.com/maps/api/geocode/json?latlng=46.51157,6.62179&amp;key=AIzaSyCpw0hNO2ZzIxKb9cTyrSPEN3ADvUTc5Xc&amp
 }
 
 function map_show_tab () {
@@ -203,6 +201,7 @@ function map_utilities_list () {
 	<?php
 	form_end_row();
 }
+
 function map_utilities_action ($action) {
 	// get device list,  where snmp is active
 	$dbquery = db_fetch_assoc("SELECT id, hostname, snmp_community, 
@@ -277,7 +276,6 @@ function map_api_device_new( $host ) {
 	}
 	
 	// device is saved, take the snmplocation to check with database
-	//$snmp_location = db_fetch_cell("SELECT snmp_sysLocation FROM host WHERE id='".$host['id']."'" );
 	$snmp_location = cacti_snmp_get( $host['hostname'], $host['snmp_community'], $snmp_sysLocation, $host['snmp_version'], $host['snmp_username'], $host['snmp_password'], $host['snmp_auth_protocol'], $host['snmp_priv_passphrase'], $host['snmp_priv_protocol'], $host['snmp_context'] ); 
 
 	// geocod it, many Google query but the address is the geocoded one
@@ -381,7 +379,7 @@ function GoogleReverGeocode ($lat, $lng ) {
         // get the important data
         $lati = $resp['results'][0]['geometry']['location']['lat'];
         $longi = $resp['results'][0]['geometry']['location']['lng'];
-        $formatted_address = $resp['results'][0]['formatted_address'];
+        $formatted_address = db_qstr($resp['results'][0]['formatted_address']);
 
 		// location as array
 		$location = array();
@@ -451,7 +449,7 @@ function GoogleGeocode($location){
         // get the important data
         $lati = $resp['results'][0]['geometry']['location']['lat'];
         $longi = $resp['results'][0]['geometry']['location']['lng'];
-        $formatted_address = $resp['results'][0]['formatted_address'];
+        $formatted_address = db_qstr($resp['results'][0]['formatted_address']);
 
 		// location as array
 		$location = formatedJson( $resp['results'][0] );
@@ -494,17 +492,6 @@ function OpenStreetGeocode($locations){
 	
 	/* jsonv2
 	[{"place_id":"82095265","licence":"Data © OpenStreetMap contributors, ODbL 1.0. http:\/\/www.openstreetmap.org\/copyright","osm_type":"way","osm_id":"46835009","boundingbox":["46.5275177","46.5286706","6.643296","6.6451603"],"lat":"46.52810155","lon":"6.64424499124893","display_name":"Pierre-de-Plan, Chemin de Pierre-de-Plan, Chailly, Lausanne, District de Lausanne, Vaud, 1011, Suisse","place_rank":"30","category":"man_made","type":"works","importance":0.511,"address":{"address29":"Pierre-de-Plan","road":"Chemin de Pierre-de-Plan","neighbourhood":"Chailly","city":"Lausanne","county":"District de Lausanne","state":"Vaud","postcode":"1011","country":"Suisse","country_code":"ch"},"svg":"M 6.643296 -46.5280323 L 6.6436639 -46.527865200000001 6.6436909 -46.527716699999999 6.6439739 -46.527604500000002 6.6440302 -46.527667100000002 6.6441516 -46.5276183 6.6445688 -46.527548199999998 6.6450363 -46.527522099999999 6.6450765 -46.527517699999997 6.6451603 -46.528054300000001 6.6451038 -46.528148799999997 6.6438793 -46.528670599999998 6.6437815 -46.528624499999999 6.6435271 -46.5285194 6.6434554 -46.5284458 6.64361 -46.528383400000003 Z"}]
-
-	$ret = db_execute("INSERT INTO sites (name, address1, city, state, postal_code, country, address2, latitude, longitude) VALUES ('"
-		. mysql_real_escape_string($gpslocation[2]) ."','"
-		. mysql_real_escape_string($gpslocation[3]['address1'])." ".$gpslocation[3]['street_number']."','"
-		. $gpslocation[3]['city']."','"
-		. $gpslocation[3]['state']."','"
-		. $gpslocation[3]['postal_code']."','"
-		. $gpslocation[3]['country']."','"
-		. mysql_real_escape_string($gpslocation[3]['address2'])."','"
-		. $gpslocation[0] . "', '"
-		. $gpslocation[1] . "')");
 	*/
 	//// Suisse;Lausanne;Chemin de Pierre-de-Plan 4;-1;Local Telecom;;;46.54;6.56
     // url encode the address
@@ -546,12 +533,18 @@ function OpenStreetGeocode($locations){
 				$location['address1'] = utf8_decode($resp[0]['address']['road']);
 			}
 			$location['street_number'] = empty($resp[0]['address']['house_number'])?"":$resp[0]['address']['house_number'];
-			if ( empty($resp[0]['address']['city']) ) { 
-				if ( empty($resp[0]['address']['town']) ) {
-					$location['city'] = $resp[0]['address']['neighbourhood'];
-				} else $location['city'] = $resp[0]['address']['town'];
-			} else {
+			if ( !empty($resp[0]['address']['city']) ) { 
 				$location['city'] = $resp[0]['address']['city'];
+			} else if ( !empty($resp[0]['address']['town']) ) {
+				$location['city'] = $resp[0]['address']['town'];
+			} else if ( !empty($resp[0]['address']['village']) ) {
+				$location['city'] = $resp[0]['address']['village'];
+			} else if ( !empty($resp[0]['address']['suburb']) ) {
+				$location['city'] = $resp[0]['address']['suburb'];
+			} else if ( !empty($resp[0]['address']['neighbourhood']) ) {
+				$location['city'] = $resp[0]['address']['neighbourhood'];
+			} else {
+				$location['city'] = "uknown";
 			}
 			$location['postal_code'] = $resp[0]['address']['postcode'];
 			$location['country'] = $resp[0]['address']['country'];
@@ -561,15 +554,9 @@ function OpenStreetGeocode($locations){
 			$location['lon'] = $longi;
 			$location['types'][0] = $resp[0]['type'];
 
-			$formatted_address = $location['address1']." ".$location['street_number'].", ".$location['postal_code']. " ".$location['city'].", ".$location['country'];
+			$formatted_address = db_qstr($location['address1']." ".$location['street_number'].", ".$location['postal_code']. " ".$location['city'].", ".$location['country']);
 			$location['formated_address'] = $formatted_address;
 
-			/* array format:
-                    $lati, 
-                    $longi, 
-                    $formatted_address,
-					$location (array of full detail)
-*/
 			$data_arr = array();            
          
 			array_push(
@@ -649,15 +636,9 @@ function OpenStreetReverseGeocode ($lat, $lng ) {
 			$location['lon'] = $longi;
 			$location['types'][0] = $resp['type'];
 
-			$formatted_address = $location['address1']." ".$location['street_number'].", ".$location['postal_code']. " ".$location['city'].", ".$location['country'];
+			$formatted_address = db_qstr($location['address1']." ".$location['street_number'].", ".$location['postal_code']. " ".$location['city'].", ".$location['country']);
 			$location['formated_address'] = $formatted_address;
 
-			/* array format:
-                    $lati, 
-                    $longi, 
-                    $formatted_address,
-					$location (array of full detail)
-*/
 			$data_arr = array();            
          
 			array_push(
