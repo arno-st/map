@@ -35,3 +35,4 @@
 1.2.3 Added the option to geocode only selected device under Management -> devices list
 1.2.4 Added the type on the notes on the site liste, and some correction with openstreet map geocoding
 1.2.5 fully working with OpenStreetmap and leaflet
+1.2.6 Fix some problem with escape string on location detection and geocoding with openstreetmap
