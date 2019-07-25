@@ -121,6 +121,11 @@ html_start_box("", "100%", $colors["header"], "3", "center", "");
     <script src="/cacti/plugins/map/markerclusterer.js"></script>
     <script async defer src="https://maps.googleapis.com/maps/api/js?<?php ($mapapikey != NULL)?print 'key='.$mapapikey."&":"" ?>callback=initMap"></script>
 	<script>
+	// auto refresh every 5 minutes
+	setTimeout(function() {
+	  location.reload();
+	}, 300000);
+
 	function initMap() {
         var center = new google.maps.LatLng(46.52, 6.64);
         var map = new google.maps.Map(document.getElementById('map'), {
