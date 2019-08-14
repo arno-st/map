@@ -119,7 +119,7 @@ function map_check_dependencies() {
 function plugin_map_version () {
 	return array(
 		'name'     => 'Map',
-		'version'  => '0.34',
+		'version'  => '0.35',
 		'longname' => 'Map Viewer',
 		'author'   => 'Arno Streuli',
 		'homepage' => 'http://cactiusers.org',
