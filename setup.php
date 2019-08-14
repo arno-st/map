@@ -32,6 +32,10 @@ function plugin_map_install () {
 	api_plugin_register_hook('map', 'utilities_action', 'map_utilities_action', 'setup.php');
 	api_plugin_register_hook('map', 'utilities_list', 'map_utilities_list', 'setup.php');
 
+// Device action
+    	api_plugin_register_hook('map', 'device_action_array', 'map_device_action_array', 'setup.php');
+    	api_plugin_register_hook('map', 'device_action_execute', 'map_device_action_execute', 'setup.php');
+	api_plugin_register_hook('map', 'device_action_prepare', 'map_device_action_prepare', 'setup.php');
 	api_plugin_register_realm('map', 'map.php', 'Plugin -> Map', 1);
 
 	map_setup_table();
@@ -489,4 +493,58 @@ function map_log( $text ){
 	if( $dolog ) cacti_log( $text, false, "MAP" );
 
 }
+
+function map_device_action_execute($action) {
+        global $config;
+
+        if ($action != 'map_geocode' ) {
+                return $action;
+        }
+
+        $selected_items = unserialize(stripslashes($_POST["selected_items"]));
+
+        if ($action == 'map_geocode' ) {
+                for ($i = 0; ($i < count($selected_items)); $i++) {
+                /* ================= input validation ================= */
+                input_validate_input_number($selected_items[$i]);
+                /* ==================================================== */
+                        $dbquery = db_fetch_assoc("SELECT * FROM host WHERE id=".$selected_items[$i]);
+map_log("Rebuild Mapping: ".$selected_items[$i]." - ".print_r($dbquery[0])." - ".$dbquery[0]['description']."\n");
+                        map_api_device_new($dbquery[0]);
+                }
+        }
+
+        return $action;
+}
+
+function map_device_action_prepare($save) {
+        global $colors, $host_list;
+
+    $action = $save['drp_action'];
+
+        if ($action != 'map_geocode' ) {
+                return $save;
+        }
+
+        if ($action == 'map_geocode' ) {
+                if ($action == 'map_geocode') {
+                                $action_description = 'Geocode';
+                }
+
+                print "<tr>
+                        <td colspan='2' class='textArea' bgcolor='#" . $colors["form_alternate1"]. "'>
+                                <p>To ". $action_description ." Geocode this device \"Continue\" button below.</p>
+                                <p>" . $save['host_list'] . "</p>
+                        </td>
+                </tr>";
+        }
+
+}
+
+function map_device_action_array($device_action_array) {
+        $device_action_array['map_geocode'] = 'Geocode Device';
+
+        return $device_action_array;
+}
+
 ?>
