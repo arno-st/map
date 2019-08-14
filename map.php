@@ -33,15 +33,15 @@ map_check_upgrade();
 if (isset($_REQUEST["button_clear_x"])) {
 	kill_session_var("sess_map_host");
 
-	unset($_REQUEST["hostname"]);
+	unset($_REQUEST["description"]);
 }
 
 /* remember these search fields in session vars so we don't have to keep passing them around */
-load_current_session_value("hostname", "sess_map_host", "");
+load_current_session_value("description", "sess_map_host", "");
 $mapapikey = read_config_option('map_api_key');
 
 $sql_where  = '';
-$hostname       = get_request_var_request("hostname");
+$hostname       = get_request_var_request("description");
 
 if ($hostname != '') {
 	$sql_where .= " AND " . "host.hostname like '%$hostname%'";
@@ -50,7 +50,7 @@ if ($hostname != '') {
 include(dirname(__FILE__) . "/general_header.php");
 
 $sql_query = "SELECT host.id as 'id', 
-		host.hostname as 'hostname', map.lat as 'lat', map.lon as 'lon', map.address as 'address', host.disabled as 'disabled', host.status as 'status'
+		host.description as 'description', map.lat as 'lat', map.lon as 'lon', map.address as 'address', host.disabled as 'disabled', host.status as 'status'
 		FROM host, plugin_map_coordinate map, plugin_map_host maphost
 		WHERE host.id=maphost.host_id
 		AND maphost.address_id=map.id
@@ -63,7 +63,7 @@ $result = db_fetch_assoc($sql_query);
 <!--
 
 function applyFilterChange(objForm) {
-	strURL = '&hostname=' + objForm.host.value;
+	strURL = '&description=' + objForm.host.value;
 	document.location = strURL;
 }
 
@@ -81,10 +81,10 @@ html_start_box("<strong>Filters</strong>", "100%", $colors["header"], "3", "cent
 		<table width="100%" cellpadding="0" cellspacing="0">
 			<tr class="noprint">
 				<td nowrap style='white-space: nowrap;' width="1">
-					&nbsp;Hostname :&nbsp;
+					&nbsp;description :&nbsp;
 				</td>
 				<td width="1">
-					<input type="text" name="hostname" size="25" value="<?php print get_request_var_request("hostname");?>">
+					<input type="text" name="hostname" size="25" value="<?php print get_request_var_request("description");?>">
 				</td>
 				<td nowrap style='white-space: nowrap;'>
 					&nbsp;<input type="submit" value="Go" title="Set/Refresh Filters">
@@ -143,7 +143,7 @@ html_start_box("", "100%", $colors["header"], "3", "center", "");
 ?>
 			var marker = new google.maps.Marker( {
 				position: new google.maps.LatLng(<?php print $device['lat'];?>, <?php print $device['lon'];?>),
-				title: '<?php print $device['hostname']. "\\n" . utf8_encode($device['address']);?>',
+				title: '<?php print $device['description']. "\\n" . utf8_encode($device['address']);?>',
 				icon: iconBase + '<?php if ($device['disabled'] == 'on') print 'pingrey.png'; else if ($device['status']==1) print 'pin.png'; else if ($device['status']==2) print 'pinblue.png'; else print 'pingreen.png';?>'
 			} );
 			markers.push(marker);
