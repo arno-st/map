@@ -33,9 +33,10 @@ function plugin_map_install () {
 	api_plugin_register_hook('map', 'utilities_list', 'map_utilities_list', 'setup.php');
 
 // Device action
-    	api_plugin_register_hook('map', 'device_action_array', 'map_device_action_array', 'setup.php');
-    	api_plugin_register_hook('map', 'device_action_execute', 'map_device_action_execute', 'setup.php');
-	api_plugin_register_hook('map', 'device_action_prepare', 'map_device_action_prepare', 'setup.php');
+    api_plugin_register_hook('map', 'device_action_array', 'map_device_action_array', 'setup.php');
+    api_plugin_register_hook('map', 'device_action_execute', 'map_device_action_execute', 'setup.php');
+    api_plugin_register_hook('map', 'device_action_prepare', 'map_device_action_prepare', 'setup.php');
+
 	api_plugin_register_realm('map', 'map.php', 'Plugin -> Map', 1);
 
 	map_setup_table();
@@ -119,7 +120,7 @@ function map_check_dependencies() {
 function plugin_map_version () {
 	return array(
 		'name'     => 'Map',
-		'version'  => '0.35',
+		'version'  => '0.36',
 		'longname' => 'Map Viewer',
 		'author'   => 'Arno Streuli',
 		'homepage' => 'http://cactiusers.org',
@@ -145,9 +146,16 @@ function map_config_settings () {
 			"friendly_name" => "Which maping tools",
 			"description" => "Define the mapping tools used.",
 			"method" => "drop_array",
-//			'array' => array("0" => "GoogleMap", "1" => "OpenStreetMap"),
-			'array' => array("0" => "GoogleMap"),
+			'array' => array("0" => "GoogleMap", "1" => "OpenStreetMap"),
+//			'array' => array("0" => "GoogleMap"),
 			"default" => "20"
+			),
+		"map_center" => array(
+			"friendly_name" => "Map center",
+			"description" => "Address to where whe should center the map (country;city;street number).",
+			"method" => "textbox",
+			"max_length" => 120,
+			"default" => ""
 			),
 		"map_api_key" => array(
 			"friendly_name" => "API Key",
@@ -168,6 +176,27 @@ function map_config_settings () {
 		$settings['misc'] = array_merge($settings['misc'], $temp);
 	else
 		$settings['misc']=$temp;
+	
+	$location = read_config_option('map_center');
+	if( $location != '') {
+		
+		$location = str_replace( ",", ";", $location );
+		$address = explode( ';', $location); // Suisse;Lausanne;Chemin de Pierre-de-Plan 4
+
+		$maptools = read_config_option('map_tools');
+		if( $maptools == '0' ) {
+			$gpslocation = GoogleGeocode($address);
+		} else if( $maptools == '1' ) {
+			$gpslocation = OpenStreetGeocode($address);
+		}
+	 	if( $gpslocation != false ) {
+			set_config_option('map_center_gps_lati', $gpslocation[0]);
+			set_config_option('map_center_gps_longi', $gpslocation[1]);
+		}
+	} else {
+		set_config_option('map_center_gps_longi', '0.0');
+		set_config_option('map_center_gps_lati', '51.48257');
+	}
 
 }
 
@@ -272,7 +301,7 @@ function query_location( $host ) {
 		$host['snmp_auth_protocol'], $host['snmp_priv_passphrase'], $host['snmp_priv_protocol'], 
 		$host['snmp_context'] ); 
 
-map_log("\n\ndevice: ".$host['hostname']." ".$snmp_location );
+map_log("Query location device: ".$host['hostname']." ".$snmp_location );
 
 	return $snmp_location;
 }
@@ -285,26 +314,26 @@ function geocod_address( $snmp_location ) {
 	// location format: Country;City;Street_Building;Floor;Room;Rack;RU;Lat;lon
 	$snmp_location = str_replace( ",", ";", $snmp_location );
 	$address = explode( ';', $snmp_location ); // Suisse;Lausanne;Chemin de Pierre-de-Plan 4;-1;Local Telecom;;;46.54;6.56
-	if( count($address) <= 7 ) {
-		$location = $address[2]. "," .$address[1]. "," . $address[0];
-		$location = str_replace(' ', '+', $location );
+	if( (count($address) <= 7) && count($address) > 2 ) {
 		$gpslocation = array();
 		if( $maptools == '0' ) {
-			$gpslocation = GoogleGeocode($location);
+			$gpslocation = GoogleGeocode($address);
 		} else if( $maptools == '1' ) {
-			$gpslocation = OpenStreetGeocode($location);
+			$gpslocation = OpenStreetGeocode($address);
 		}
 		if($gpslocation != false ){
 			$gpslocation[2] = str_replace ("'", " ", $gpslocation[2]); // replace ' by space
-map_log("adresse: ".$gpslocation[2] );
 		} 
 	} else if( count($address) == 9 ) { 
 		// gps coordinate
-		$gpslocation['2'] = GoogleReverGeocode( $address[7], $address[8] );
-		$gpslocation['1'] = $address[8]; // Longitude 6.56
-		$gpslocation['0'] = $address[7]; // Latitude 45.54
+		if( $maptools == '0' ) {
+			$gpslocation = GoogleReverGeocode( $address[7], $address[8] );
+		} else if( $maptools == '1' ) {
+			$gpslocation = OpenStreetReverseGeocode( $address[7], $address[8] );
+		}
+		
 	} else {
-		map_log("Snmp location error: ".$snmp_location );
+		map_log("Snmp location error: ".var_dump($address)."\n" );
 		$gpslocation = false;
 	}
 	return $gpslocation;
@@ -381,7 +410,8 @@ function map_api_device_new( $host ) {
 
    // and add  host to plugin_map_host_table
 	$address_id = db_fetch_cell("SELECT id FROM plugin_map_coordinate WHERE address='".sql_sanitize($gpslocation[2])."'" );
-	db_execute("REPLACE INTO plugin_map_host (host_id, address_id) VALUES (" .$host['id']. "," .$address_id. ")");
+	db_execute("DELETE FROM plugin_map_host where host_id=" .$host['id']);
+	db_execute("INSERT INTO plugin_map_host (host_id, address_id) VALUES (" .$host['id']. "," .$address_id. ")");
 	
 	return $host;
 }
@@ -419,8 +449,43 @@ function GoogleReverGeocode ($lat, $lng ) {
 
     // response status will be 'OK', if able to geocode given address 
     if($resp['status']=='OK'){
-         // get the important data
-        $formatted_address = str_replace ("'", " ", utf8_decode($resp['results'][0]['formatted_address']) );
+        // get the important data
+        $lati = $resp['results'][0]['geometry']['location']['lat'];
+        $longi = $resp['results'][0]['geometry']['location']['lng'];
+        $formatted_address = $resp['results'][0]['formatted_address'];
+
+	// location as array
+	$location = array();
+	$location = formatedJson( $resp['results'][0] );
+ 
+        // verify if data is complete
+        $data_arr = array();            
+        if($lati && $longi && $formatted_address){
+         
+            // put the data in the array
+            array_push(
+                $data_arr, 
+                    $lati, 
+                    $longi, 
+                    empty($formatted_address)?"Unnamed road":$formatted_address,
+		    $location
+                );
+             
+            return $data_arr;
+             
+        }else{
+         
+            array_push(
+                $data_arr, 
+                    $lat, 
+                    $lng, 
+                    "Unnamed road",
+		    $location
+                );
+             
+            return $data_arr;
+        }
+         
 		map_log("Google ReverseGeocoding: ". $formatted_address );
     } else{
 		map_log("Google Geocoding error: ".$resp['status'] );
@@ -430,12 +495,15 @@ function GoogleReverGeocode ($lat, $lng ) {
 	return $formatted_address;
 }
 
-function GoogleGeocode($address){
+function GoogleGeocode($location){
 	global $config;
 	$mapapikey = read_config_option('map_api_key');
+	// Suisse;Lausanne;Chemin de Pierre-de-Plan 4;-1;Local Telecom;;;46.54;6.56
+	$address = $location[2]. "," .$location[1]. "," . $location[0];
+	$address = str_replace(' ', '+', $address );
+
 	//https://maps.googleapis.com/maps/api/geocode/json?address=4+chemin+pierre+de+plan,+Lausanne,+Suisse&key=AIzaSyAr0rad39hJtQLiRoPqsTstFW9u8kl6PYA
     // url encode the address
-     
     // google map geocode api url
 	if( $mapapikey != null)
 		$url = "https://maps.google.com/maps/api/geocode/json?address={$address}&key={$mapapikey}";
@@ -454,25 +522,37 @@ function GoogleGeocode($address){
         // get the important data
         $lati = $resp['results'][0]['geometry']['location']['lat'];
         $longi = $resp['results'][0]['geometry']['location']['lng'];
-        $formatted_address = utf8_decode($resp['results'][0]['formatted_address']);
-         
+        $formatted_address = $resp['results'][0]['formatted_address'];
+
+	// location as array
+	$location = array();
+	$location = formatedJson( $resp['results'][0] );
+
         // verify if data is complete
+        // put the data in the array
+        $data_arr = array();            
         if($lati && $longi && $formatted_address){
          
-            // put the data in the array
-            $data_arr = array();            
-             
             array_push(
                 $data_arr, 
                     $lati, 
                     $longi, 
-                    $formatted_address
+                    empty($formatted_address)?"Unnamed road":$formatted_address,
+		    $location
                 );
              
             return $data_arr;
              
         }else{
-            return false;
+            array_push(
+                $data_arr, 
+                    $lati, 
+                    $longi, 
+                    $address,
+		    $location
+                );
+             
+            return $data_arr;
         }
          
     }else{
@@ -481,12 +561,196 @@ function GoogleGeocode($address){
     }
 }
 
-function OpenStreetGeocode($address){
-    // url encode the address
-    $address = urlencode($address);
-map_log("Open Street Address: ".$address );
+function formatedJson( $result ) {
+	$location = array();
+	$location['address1'] = " ";
+	$location['street_number'] = " ";
+	$location['city'] = " ";
+	$location['address2'] = " ";
+	$location['state'] = " ";
+	$location['postal_code'] = " ";
+	$location['country'] = " ";
+	$location['types'] = " ";
 
+	foreach ($result['address_components'] as $component) {
+
+		switch ($component['types']) {
+			case in_array('street_number', $component['types']):
+				$location['street_number'] = $component['long_name'];
+			break;
+			case in_array('route', $component['types']):
+				$location['address1'] = $component['long_name'];
+			break;
+			case in_array('locality', $component['types']):
+				$location['city'] = $component['long_name'];
+			break;
+			case in_array('administrative_area_level_2', $component['types']):
+				$location['address2'] = $component['long_name'];
+			break;
+			case in_array('administrative_area_level_1', $component['types']):
+				$location['state'] = $component['long_name'];
+			break;
+			case in_array('postal_code', $component['types']):
+				$location['postal_code'] = $component['long_name'];
+			break;
+			case in_array('country', $component['types']):
+				$location['country'] = $component['long_name'];
+			break;
+			default:
+			map_log("json error: ".print_r($component['types'], true)." ".$component['long_name']."\n");
+		}
+
+	}
+
+	$location['types'] = $result['types'][0];
+
+	return $location;
 }
+
+function FormalizedAddress( $resp ) {
+			$lati = $resp['lat'];
+			$longi = $resp['lon'];
+
+			if( !empty($resp['address']['road']) ) {
+				$location['address1'] = utf8_decode($resp['address']['road']);
+			} else if( !empty($resp['address']['pedestrian']) ) {
+				$location['address1'] = utf8_decode($resp['address']['pedestrian']);
+			} else if( !empty($resp['address']['path']) ) {
+				$location['address1'] = utf8_decode($resp['address']['path']);
+			} else if( !empty($resp['address']['address27']) ) {
+				$location['address1'] = utf8_decode($resp['address']['address27']);
+			} else {
+				$location['address1'] = "unknown";
+			}
+			$location['street_number'] = empty($resp['address']['house_number'])?"":$resp['address']['house_number'];
+			if ( !empty($resp['address']['city']) ) { 
+				$location['city'] = $resp['address']['city'];
+			} else if ( !empty($resp['address']['town']) ) {
+				$location['city'] = $resp['address']['town'];
+			} else if ( !empty($resp['address']['village']) ) {
+				$location['city'] = $resp['address']['village'];
+			} else if ( !empty($resp['address']['suburb']) ) {
+				$location['city'] = $resp['address']['suburb'];
+			} else if ( !empty($resp['address']['neighbourhood']) ) {
+				$location['city'] = $resp['address']['neighbourhood'];
+			} else {
+				$location['city'] = "unknown";
+			}
+			$location['postal_code'] = $resp['address']['postcode'];
+			$location['country'] = $resp['address']['country'];
+			$location['state'] = $resp['address']['state'];
+			$location['address2'] =  $resp['address']['county'];
+			$location['lat'] = $lati;
+			$location['lon'] = $longi;
+			$location['types'] = $resp['category'];
+
+			$formatted_address = $location['address1']." ".$location['street_number'].", ".$location['postal_code']. " ".$location['city'].", ".$location['country'];
+			$location['formated_address'] = $formatted_address;
+
+			$data_arr = array();            
+         
+			array_push(
+				$data_arr, 
+				$lati, 
+				$longi, 
+				$formatted_address,
+				$location
+				);
+			return $data_arr;
+}
+
+function OpenStreetGeocode($locations){
+	// http://nominatim.openstreetmap.org/search/chemin pierre-de-plan 4 Lausanne?format=json&addressdetails=1&limit=1&polygon_svg=1
+	
+	/* jsonv2
+	[{"place_id":"82095265","licence":"Data © OpenStreetMap contributors, ODbL 1.0. http:\/\/www.openstreetmap.org\/copyright","osm_type":"way","osm_id":"46835009","boundingbox":["46.5275177","46.5286706","6.643296","6.6451603"],"lat":"46.52810155","lon":"6.64424499124893","display_name":"Pierre-de-Plan, Chemin de Pierre-de-Plan, Chailly, Lausanne, District de Lausanne, Vaud, 1011, Suisse","place_rank":"30","category":"man_made","type":"works","importance":0.511,"address":{"address29":"Pierre-de-Plan","road":"Chemin de Pierre-de-Plan","neighbourhood":"Chailly","city":"Lausanne","county":"District de Lausanne","state":"Vaud","postcode":"1011","country":"Suisse","country_code":"ch"},"svg":"M 6.643296 -46.5280323 L 6.6436639 -46.527865200000001 6.6436909 -46.527716699999999 6.6439739 -46.527604500000002 6.6440302 -46.527667100000002 6.6441516 -46.5276183 6.6445688 -46.527548199999998 6.6450363 -46.527522099999999 6.6450765 -46.527517699999997 6.6451603 -46.528054300000001 6.6451038 -46.528148799999997 6.6438793 -46.528670599999998 6.6437815 -46.528624499999999 6.6435271 -46.5285194 6.6434554 -46.5284458 6.64361 -46.528383400000003 Z"}]
+	*/
+	//// Suisse;Lausanne;Chemin de Pierre-de-Plan 4;-1;Local Telecom;;;46.54;6.56
+    // url encode the address
+	
+	$address = $locations[2]." ".$locations[1]." ".$locations[0];
+	$address = str_replace( ' ', '%20', $address);
+
+	$url = "https://nominatim.openstreetmap.org/search/". $address. "?format=jsonv2&addressdetails=1&limit=1";
+
+	// Setup headers - I used the same headers from Firefox version 2.0.0.6
+	$header[] = "Accept-Language: en,en-US;q=0.8,fr-FR;q=0.5,fr;q=0.3";
+	$header[] = "User-Agent: Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:45.0) Gecko/20100101 Firefox/45.0";
+	$header[] = "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
+
+    $handle = curl_init($url);
+    curl_setopt($handle, CURLOPT_HTTPHEADER, $header); 
+    curl_setopt($handle, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($handle, CURLOPT_FOLLOWLOCATION, true);
+    $html = curl_exec($handle);
+    curl_close($handle);
+
+    libxml_use_internal_errors(true); // Prevent HTML errors from displaying
+   
+    $doc = new DOMDocument();
+    $doc->loadHTML($html);
+
+    if ($doc) {
+		$location = array();
+		// decode the json
+		$resp = json_decode($doc->textContent, true, 512 );
+
+        if( json_last_error() === JSON_ERROR_NONE ) {// get the important data
+			return FormalizedAddress($resp[0]);
+		} else {
+			map_log("OpenStreetmap json error: ".json_last_error()." loca: ".$url ."\n" );
+			return false;
+		}
+		
+	} else {
+		map_log("OpenStreetmap Geocoding error: ".json_last_error()."loca: ".$url ."\n" );
+		return false;
+	}
+}
+
+function OpenStreetReverseGeocode ($lat, $lng ) {
+	// http://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=46.52810155&lon=6.64424499124893&zoom=18&addressdetails=1
+/* JSONv2
+{"place_id":"74144934","licence":"Data © OpenStreetMap contributors, ODbL 1.0. http:\/\/www.openstreetmap.org\/copyright","osm_type":"way","osm_id":"24634955","lat":"46.52894795","lon":"6.64445024999999","place_rank":"30","category":"leisure","type":"pitch","importance":"0","addresstype":"leisure","display_name":"Stade de La Sallaz, Chemin de Pierre-de-Plan, Chailly, Lausanne, District de Lausanne, Vaud, 1011, Suisse","name":"Stade de La Sallaz","address":{"pitch":"Stade de La Sallaz","road":"Chemin de Pierre-de-Plan","neighbourhood":"Chailly","city":"Lausanne","county":"District de Lausanne","state":"Vaud","postcode":"1011","country":"Suisse","country_code":"ch"},"boundingbox":["46.5285089","46.529387","6.6437265","6.645174"]}
+*/	
+
+	$url = "https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=".$lat."&lon=".$lng."&zoom=18&addressdetails=1";
+
+	// Setup headers - I used the same headers from Firefox version 2.0.0.6
+	$header[] = "Accept-Language: en,en-US;q=0.8,fr-FR;q=0.5,fr;q=0.3";
+	$header[] = "User-Agent: Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:45.0) Gecko/20100101 Firefox/45.0";
+	$header[] = "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
+
+    $handle = curl_init($url);
+	curl_setopt($handle, CURLOPT_HTTPHEADER, $header); 
+    curl_setopt($handle, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($handle, CURLOPT_FOLLOWLOCATION, true);
+    $html = curl_exec($handle);
+    curl_close($handle);
+
+    libxml_use_internal_errors(true); // Prevent HTML errors from displaying
+   
+    $doc = new DOMDocument();
+    $doc->loadHTML($html);
+
+    if ($doc) {
+		$location = array();
+		// decode the json
+		$resp = json_decode($doc->textContent, true, 512 );
+
+        if( json_last_error() === JSON_ERROR_NONE ) {// get the important data
+			return FormalizedAddress($resp);
+		} else {
+			map_log("OpenStreetmap json error: ".json_last_error()."loca: ".$url ."\n" );
+			return false;
+		}
+		
+	} else {
+		map_log("OpenStreetmap Reverse Geocoding error: ".json_last_error()."loca: ".$url ."\n" );
+		return false;
+	}
+}
+
 
 function map_log( $text ){
 	$dolog = read_config_option('map_log_debug');
@@ -495,56 +759,56 @@ function map_log( $text ){
 }
 
 function map_device_action_execute($action) {
-        global $config;
+	global $config;
 
-        if ($action != 'map_geocode' ) {
-                return $action;
-        }
+	if ($action != 'map_geocode' ) {
+		return $action;
+	}
 
-        $selected_items = unserialize(stripslashes($_POST["selected_items"]));
+	$selected_items = unserialize(stripslashes($_POST["selected_items"]));
 
-        if ($action == 'map_geocode' ) {
-                for ($i = 0; ($i < count($selected_items)); $i++) {
-                /* ================= input validation ================= */
-                input_validate_input_number($selected_items[$i]);
-                /* ==================================================== */
-                        $dbquery = db_fetch_assoc("SELECT * FROM host WHERE id=".$selected_items[$i]);
-map_log("Rebuild Mapping: ".$selected_items[$i]." - ".print_r($dbquery[0])." - ".$dbquery[0]['description']."\n");
-                        map_api_device_new($dbquery[0]);
-                }
-        }
+	if ($action == 'map_geocode' ) {
+		for ($i = 0; ($i < count($selected_items)); $i++) {
+		/* ================= input validation ================= */
+		input_validate_input_number($selected_items[$i]);
+		/* ==================================================== */
+			$dbquery = db_fetch_assoc("SELECT * FROM host WHERE id=".$selected_items[$i]);
+map_log("Rebuild Mapping: ".$selected_items[$i]." - ".$dbquery[0]['description']."\n");
+			map_api_device_new($dbquery[0]);
+		}
+	}
 
-        return $action;
+	return $action;
 }
 
 function map_device_action_prepare($save) {
-        global $colors, $host_list;
+	global $colors, $host_list;
 
     $action = $save['drp_action'];
 
-        if ($action != 'map_geocode' ) {
-                return $save;
-        }
+	if ($action != 'map_geocode' ) {
+		return $save;
+	}
 
-        if ($action == 'map_geocode' ) {
-                if ($action == 'map_geocode') {
-                                $action_description = 'Geocode';
-                }
+	if ($action == 'map_geocode' ) {
+		if ($action == 'map_geocode') {
+				$action_description = 'Geocode';
+		}
 
-                print "<tr>
-                        <td colspan='2' class='textArea' bgcolor='#" . $colors["form_alternate1"]. "'>
-                                <p>To ". $action_description ." Geocode this device \"Continue\" button below.</p>
-                                <p>" . $save['host_list'] . "</p>
-                        </td>
-                </tr>";
-        }
+		print "<tr>
+			<td colspan='2' class='textArea' bgcolor='#" . $colors["form_alternate1"]. "'>
+				<p>To ". $action_description ." Geocode this device \"Continue\" button below.</p>
+				<p>" . $save['host_list'] . "</p>
+			</td>
+		</tr>";
+	}
 
 }
 
 function map_device_action_array($device_action_array) {
-        $device_action_array['map_geocode'] = 'Geocode Device';
+	$device_action_array['map_geocode'] = 'Geocode Device';
 
-        return $device_action_array;
+	return $device_action_array;
 }
 
 ?>

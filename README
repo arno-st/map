@@ -25,5 +25,12 @@
 	Add the option of OpenStreetMap
 
 ----[ Changelog
+	0.33 The snmp location format change to include GPS value in the following 
+         format: Country;City;Street_Building;Floor;Room;Rack;RU;Lat;Long
 
-0.33 The snmp location format change to include GPS value in the following format: Country;City;Street_Building;Floor;Room;Rack;RU;Lat;Long
+	0.34 Minor bug correction, and search baes on description instead of hostname/ip address
+	0.35 Added the option to geocode only one device at time
+	0.36 Added the option to define the center of the map from the settings (if no center is given Greenwich is used,
+		 and add openstreetmap function
+	
+	
