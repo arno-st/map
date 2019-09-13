@@ -15,6 +15,7 @@
 ----[ Installation
 
 	To install the plugin, please refer to the Plugin Installation Documentation
+	You need to install php-xml extension https://stackoverflow.com/questions/14395239/class-domdocument-not-found
 
 ----[ Possible Bugs?
    
