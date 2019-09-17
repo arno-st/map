@@ -131,7 +131,7 @@ if( $maptools == '0' ) {
       }
     </style>
 
-	<script src="./markerclusterer.js"></script>
+	<script src="<?php print $config['url_path'] ?>/markerclusterer.js"></script>
     <script async defer type="text/javascript" src="https://maps.googleapis.com/maps/api/js?<?php ($mapapikey != NULL)?print 'key='.$mapapikey."&":"" ?>callback=initMap"></script>
 
 	<script defer>
@@ -187,10 +187,9 @@ if( $maptools == '0' ) {
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.4/dist/leaflet.css" integrity="sha512-puBpdR0798OZvTTbP4A8Ix/l+A4dHDD0DGqYW6RQ+9jxkRFclaxxQb/SJAWZfWAkuyeQUytO7+7N4QKrDh+drA==" crossorigin="">
     <script src="https://unpkg.com/leaflet@1.3.4/dist/leaflet.js" integrity="sha512-nMMmRyTVoLYqjP9hrbed9S+FzjZHW5gY1TWCHA5ckwXZBadntCNs8kEqAWdrb9O7rxbCaA4lKTIWjDXZxflOcA==" crossorigin=""></script>
 
-
-	<link rel="stylesheet" href="/cacti/plugins/map/MarkerCluster.css">
-	<link rel="stylesheet" href="/cacti/plugins/map/MarkerCluster.Default.css">
-	<script src="/cacti/plugins/map/leaflet.markercluster.js"></script>
+	<link rel="stylesheet" href="<?php print $config['url_path'] ?>/plugins/map/MarkerCluster.css">
+	<link rel="stylesheet" href="<?php print $config['url_path'] ?>/plugins/map/MarkerCluster.Default.css">
+	<script src="<?php print $config['url_path'] ?>/plugins/map/leaflet.markercluster.js"></script>
   
 
 <div id="map" style="width: 800px; height: 600px;"></div>
