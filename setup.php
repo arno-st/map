@@ -238,7 +238,9 @@ map_log("BuildLocation host: " . $host['hostname'] ."\n");
 
 function  BuildLocation( $host ) {
 	$snmp_sysLocation = ".1.3.6.1.2.1.1.6.0";
-/* id, hostname, snmp_community, 
+	include_once($config["library_path"] . '/snmp.php');
+
+	/* id, hostname, snmp_community, 
 		snmp_version, snmp_username, snmp_password, snmp_port, snmp_timeout, disabled, availability_method, 
 		ping_method, ping_port, ping_timeout, ping_retries, snmp_auth_protocol, snmp_priv_passphrase, 
 		snmp_priv_protocol, snmp_context */
