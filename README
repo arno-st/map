@@ -33,5 +33,4 @@
 	0.35 Added the option to geocode only one device at time
 	0.36 Added the option to define the center of the map from the settings (if no center is given Greenwich is used,
 		 and add openstreetmap function
-	
-	
+	0.37 Corrected a bug on the coordinate rebuild function
