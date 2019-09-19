@@ -120,7 +120,7 @@ function map_check_dependencies() {
 function plugin_map_version () {
 	return array(
 		'name'     => 'Map',
-		'version'  => '0.36',
+		'version'  => '0.37',
 		'longname' => 'Map Viewer',
 		'author'   => 'Arno Streuli',
 		'homepage' => 'http://cactiusers.org',
@@ -271,10 +271,22 @@ function map_utilities_action ($action) {
 				if( $gpslocation == false) 
 					continue;
 
-				// Find the address on the coordinate table
+				// check if this adress is present into the plugin_map_coordinate
 				$address_id = db_fetch_cell("SELECT id FROM plugin_map_coordinate WHERE address='".sql_sanitize($gpslocation[2])."'" );
-				if( $address_id != 0 )
-					db_execute("INSERT INTO plugin_map_host (host_id, address_id) VALUES (" .$host['id']. "," .$address_id. ")");
+				if( $address_id == 0) // record does not exist
+				{
+					// save to new table with id and location
+					$ret = db_execute("INSERT INTO plugin_map_coordinate (address, lat, lon) VALUES ('"
+					. sql_sanitize($gpslocation[2]) ."','"
+					. sql_sanitize($gpslocation[0]) . "', '"
+					. sql_sanitize($gpslocation[1]) . "')");
+				} 
+
+				// and add  host to plugin_map_host_table
+				$address_id = db_fetch_cell("SELECT id FROM plugin_map_coordinate WHERE address='".sql_sanitize($gpslocation[2])."'" );
+				db_execute("DELETE FROM plugin_map_host where host_id=" .$host['id']);
+				db_execute("INSERT INTO plugin_map_host (host_id, address_id) VALUES (" .$host['id']. "," .$address_id. ")");
+
 
 				map_log("host: " .$host['id']. " address: " .$address_id );
 			}
