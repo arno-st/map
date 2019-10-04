@@ -451,7 +451,9 @@ function GoogleReverGeocode ($lat, $lng ) {
 		$url = "https://maps.googleapis.com/maps/api/geocode/json?latlng=".$lat.",".$lng."&key={$mapapikey}&sensor=true";
 	else 
 		$url = "https://maps.googleapis.com/maps/api/geocode/json?latlng=".$lat.",".$lng."&sensor=true";
-
+	
+    map_log("GoogleMap Reverse URL: ".$url );
+	
 	//https://maps.googleapis.com/maps/api/geocode/json?latlng=46.51157,6.62179&amp;key=AIzaSyCpw0hNO2ZzIxKb9cTyrSPEN3ADvUTc5Xc&amp;sensor=true
     // get the json response
     $resp_json = file_get_contents($url);
@@ -500,7 +502,7 @@ function GoogleReverGeocode ($lat, $lng ) {
          
 		map_log("Google ReverseGeocoding: ". $formatted_address );
     } else{
-		map_log("Google Geocoding error: ".$resp['status'] );
+		map_log("Google ReverseGeocoding error: ".$resp['status'] );
         $formatted_address = false;
     }
 
@@ -521,7 +523,9 @@ function GoogleGeocode($location){
 		$url = "https://maps.google.com/maps/api/geocode/json?address={$address}&key={$mapapikey}";
 	else 
 		$url = "https://maps.google.com/maps/api/geocode/json?address={$address}";
- 
+
+    map_log("GoogleMap URL: ".$url );
+
     // get the json response
     $resp_json = file_get_contents($url);
      
