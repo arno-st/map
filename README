@@ -15,7 +15,6 @@
 ----[ Installation
 
 	To install the plugin, please refer to the Plugin Installation Documentation
-	You need to install php-xml extension https://stackoverflow.com/questions/14395239/class-domdocument-not-found
 
 ----[ Possible Bugs?
    
@@ -33,4 +32,5 @@
 	0.35 Added the option to geocode only one device at time
 	0.36 Added the option to define the center of the map from the settings (if no center is given Greenwich is used,
 		 and add openstreetmap function
-	0.37 Corrected a bug on the coordinate rebuild function
+	0.37 Corrected a bug on the coordinate rebuild function	
+	0.38 Add spider function on GoogleMap on clusterMarkerer, thanks to OverlappingMarkerSpiderfier

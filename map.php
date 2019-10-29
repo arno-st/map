@@ -114,18 +114,19 @@ if( $maptools == '0' ) {
         -webkit-box-shadow: rgba(64, 64, 64, 0.5) 0 2px 5px;
         -moz-box-shadow: rgba(64, 64, 64, 0.5) 0 2px 5px;
         box-shadow: rgba(64, 64, 64, 0.1) 0 2px 5px;
-        width: 800px;
+        width: 1024px;
       }
       #map {
-        width: 800px;
-        height: 500px;
+        width: 1024px;
+        height: 768px;
       }
     </style>
 
-    <script src="/cacti/plugins/map/markerclusterer.js"></script>
-    <script async defer src="https://maps.googleapis.com/maps/api/js?<?php ($mapapikey != NULL)?print 'key='.$mapapikey."&":"" ?>callback=initMap"></script>
+    <script type="text/javascript" src="<?php print $config['url_path'] ?>/plugins/map/markerclusterer.js"></script>
+    <script async defer type="text/javascript" src="https://maps.googleapis.com/maps/api/js?<?php ($mapapikey != NULL)?print 'key='.$mapapikey."&":"" ?>callback=initMap"></script>
+    <script type="text/javascript" src="<?php print $config['url_path'] ?>plugins/map/oms.min.js"></script>
 
-	<script defer>
+	<script defer type="text/javascript">
     // auto refresh every 5 minutes
     setTimeout(function() {
     location.reload();
@@ -143,6 +144,10 @@ if( $maptools == '0' ) {
           mapTypeId: google.maps.MapTypeId.ROADMAP
         });
 		
+        var oms = new OverlappingMarkerSpiderfier(map, {keepSpiderfied : true,
+                        markersWontMove : false,
+                        circleSpiralSwitchover: 5});
+
 		var markers = [];
 		var iconBase = './images/';
 
@@ -156,10 +161,12 @@ if( $maptools == '0' ) {
 				icon: iconBase + '<?php if ($device['disabled'] == 'on') print 'pingrey.png'; else if ($device['status']==1) print 'pin.png'; else if ($device['status']==2) print 'pinblue.png'; else print 'pingreen.png';?>'
 			} );
 			markers.push(marker);
+            oms.addMarker(marker);
+
 <?php
 		}
 ?>
-		var markerCluster = new MarkerClusterer(map, markers, {imagePath: './images/m'});
+		var markerCluster = new MarkerClusterer(map, markers, {imagePath: './images/m', maxZoom: 15});
     }
     google.maps.event.addDomListener(window, 'load', initMap);
 
@@ -176,10 +183,9 @@ if( $maptools == '0' ) {
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.5.1/dist/leaflet.css" integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ==" crossorigin="">
     <script src="https://unpkg.com/leaflet@1.5.1/dist/leaflet.js" integrity="sha512-GffPMF3RvMeYyc1LWMHtK8EbPv0iNZ8/oTtHPx9/cc2ILxQ+u905qIwdpULaqDkyBKgOaB57QTMg7ztg8Jm2Og==" crossorigin=""></script>
-
-	<link rel="stylesheet" href="/cacti/plugins/map/MarkerCluster.css">
-	<link rel="stylesheet" href="/cacti/plugins/map/MarkerCluster.Default.css">
-	<script src="/cacti/plugins/map/leaflet.markercluster.js"></script>
+	<link rel="stylesheet" href="<?php print $config['url_path'] ?>/plugins/map/MarkerCluster.css">
+	<link rel="stylesheet" href="<?php print $config['url_path'] ?>/plugins/map/MarkerCluster.Default.css">
+	<script src="<?php print $config['url_path'] ?>/plugins/map/leaflet.markercluster.js"></script>
   
 
 <div id="map" style="width: 800px; height: 600px;"></div>

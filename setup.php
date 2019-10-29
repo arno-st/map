@@ -120,7 +120,7 @@ function map_check_dependencies() {
 function plugin_map_version () {
 	return array(
 		'name'     => 'Map',
-		'version'  => '0.37',
+		'version'  => '0.38',
 		'longname' => 'Map Viewer',
 		'author'   => 'Arno Streuli',
 		'homepage' => 'http://cactiusers.org',
@@ -451,9 +451,7 @@ function GoogleReverGeocode ($lat, $lng ) {
 		$url = "https://maps.googleapis.com/maps/api/geocode/json?latlng=".$lat.",".$lng."&key={$mapapikey}&sensor=true";
 	else 
 		$url = "https://maps.googleapis.com/maps/api/geocode/json?latlng=".$lat.",".$lng."&sensor=true";
-	
-    map_log("GoogleMap Reverse URL: ".$url );
-	
+
 	//https://maps.googleapis.com/maps/api/geocode/json?latlng=46.51157,6.62179&amp;key=AIzaSyCpw0hNO2ZzIxKb9cTyrSPEN3ADvUTc5Xc&amp;sensor=true
     // get the json response
     $resp_json = file_get_contents($url);
@@ -502,7 +500,7 @@ function GoogleReverGeocode ($lat, $lng ) {
          
 		map_log("Google ReverseGeocoding: ". $formatted_address );
     } else{
-		map_log("Google ReverseGeocoding error: ".$resp['status'] );
+		map_log("Google Geocoding error: ".$resp['status'] );
         $formatted_address = false;
     }
 
@@ -523,8 +521,8 @@ function GoogleGeocode($location){
 		$url = "https://maps.google.com/maps/api/geocode/json?address={$address}&key={$mapapikey}";
 	else 
 		$url = "https://maps.google.com/maps/api/geocode/json?address={$address}";
-
-    map_log("GoogleMap URL: ".$url );
+ 
+	map_log("GoogleMap URL: ".$url );
 
     // get the json response
     $resp_json = file_get_contents($url);
@@ -688,6 +686,8 @@ function OpenStreetGeocode($locations){
 	$address = str_replace( ' ', '%20', $address);
 
 	$url = "https://nominatim.openstreetmap.org/search/". $address. "?format=jsonv2&addressdetails=1&limit=1";
+
+	map_log("OpenStreetmap URL: ".$url );
 
 	// Setup headers - I used the same headers from Firefox version 2.0.0.6
 	$header[] = "Accept-Language: en,en-US;q=0.8,fr-FR;q=0.5,fr;q=0.3";
