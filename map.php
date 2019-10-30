@@ -131,10 +131,12 @@ if( $maptools == '0' ) {
       }
     </style>
 
-	<script src="<?php print $config['url_path'] ?>/markerclusterer.js"></script>
+	<script type="text/javascript" src="<?php print $config['url_path'] ?>/markerclusterer.js"></script>
     <script async defer type="text/javascript" src="https://maps.googleapis.com/maps/api/js?<?php ($mapapikey != NULL)?print 'key='.$mapapikey."&":"" ?>callback=initMap"></script>
 
-	<script defer>
+    <script type="text/javascript" src="<?php print $config['url_path'] ?>plugins/map/oms.min.js"></script>
+
+	<script defer type="text/javascript">
     // auto refresh every 5 minutes
     setTimeout(function() {
     location.reload();
@@ -151,7 +153,12 @@ if( $maptools == '0' ) {
           center: center,
           mapTypeId: google.maps.MapTypeId.ROADMAP
         });
-		
+
+        var oms = new OverlappingMarkerSpiderfier(map, {keepSpiderfied : true, 
+                  markersWontMove : false, 
+                  circleSpiralSwitchover: 5});
+
+
 		var markers = [];
 		var iconBase = './images/';
 
@@ -165,10 +172,11 @@ if( $maptools == '0' ) {
 				icon: iconBase + '<?php if ($device['disabled'] == 'on') print 'pingrey.png'; else if ($device['status']==1) print 'pin.png'; else if ($device['status']==2) print 'pinblue.png'; else print 'pingreen.png';?>'
 			} );
 			markers.push(marker);
+                        oms.addMarker(marker);
 <?php
 		}
 ?>
-		var markerCluster = new MarkerClusterer(map, markers, {imagePath: './images/m'});
+		var markerCluster = new MarkerClusterer(map, markers, {imagePath: './images/m', maxZoom: 15});
 		google.maps.event.addDomListener(window, 'load', initMap);
     }
  
