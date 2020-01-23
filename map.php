@@ -29,7 +29,7 @@ include("./include/auth.php");
 map_check_upgrade();
 
 /* remember these search fields in session vars so we don't have to keep passing them around */
-load_current_session_value("hostname", "sess_map_host", "");
+load_current_session_value("description", "sess_map_host", "");
 $mapapikey = read_config_option('map_api_key');
 $maptools = read_config_option('map_tools');
 // check if extenddb is present, if so use it
@@ -38,10 +38,10 @@ if( db_fetch_cell("SELECT directory FROM plugin_config WHERE directory='extenddb
 }
 
 $sql_where  = '';
-$hostname       = get_request_var_request("hostname");
+$description       = get_request_var_request("description");
 
-if ($hostname != '') {
-	$sql_where .= " AND " . "host.hostname like '%$hostname%'";
+if ($description != '') {
+	$sql_where .= " AND " . "host.description like '%$description%'";
 }
 
 general_header();
@@ -63,7 +63,7 @@ $result = db_fetch_assoc($sql_query);
 
 function applyFilterChange(objForm) {
 	if( objForm.host.length > 0)
-		strURL = '&hostname=' + objForm.host.value;
+		strURL = '&description=' + objForm.host.value;
 	else strURL = '';
 	document.location = strURL;
 }
@@ -71,7 +71,7 @@ function clearFilter() {
 	<?php
 		kill_session_var("sess_map_host");
 
-		unset($_REQUEST["hostname"]);
+		unset($_REQUEST["description"]);
 	?>
 	strURL  = 'map.php?header=false';
 	loadPageNoHeader(strURL);
@@ -91,10 +91,10 @@ html_start_box('<strong>Filters</strong>', '100%', '', '3', 'center', '');
 		<table width="100%" cellpadding="0" cellspacing="0">
 			<tr class="noprint">
 				<td nowrap style='white-space: nowrap;' width="1">
-					&nbsp;Hostname :&nbsp;
+					&nbsp;Description :&nbsp;
 				</td>
 				<td width="1">
-					<input type="text" name="hostname" size="25" value="<?php print get_request_var_request("hostname");?>">
+					<input type="text" name="description" size="25" value="<?php print get_request_var_request("description");?>">
 				</td>
 				<td nowrap style='white-space: nowrap;'>
 					<input type="submit" value="Go" title="Set/Refresh Filters">
@@ -131,7 +131,7 @@ if( $maptools == '0' ) {
       }
     </style>
 
-	<script type="text/javascript" src="<?php print $config['url_path'] ?>/markerclusterer.js"></script>
+	<script type="text/javascript" src="<?php print $config['url_path'] ?>plugins/map/markerclusterer.js"></script>
     <script async defer type="text/javascript" src="https://maps.googleapis.com/maps/api/js?<?php ($mapapikey != NULL)?print 'key='.$mapapikey."&":"" ?>callback=initMap"></script>
 
     <script type="text/javascript" src="<?php print $config['url_path'] ?>plugins/map/oms.min.js"></script>
@@ -154,11 +154,10 @@ if( $maptools == '0' ) {
           mapTypeId: google.maps.MapTypeId.ROADMAP
         });
 
-        var oms = new OverlappingMarkerSpiderfier(map, {keepSpiderfied : true, 
-                  markersWontMove : false, 
-                  circleSpiralSwitchover: 5});
-
-
+	var oms = new OverlappingMarkerSpiderfier(map, {keepSpiderfied : true, 
+			markersWontMove : false, 
+			circleSpiralSwitchover: 5});
+		
 		var markers = [];
 		var iconBase = './images/';
 
@@ -168,14 +167,15 @@ if( $maptools == '0' ) {
 ?>
 			var marker = new google.maps.Marker( {
 				position: new google.maps.LatLng(<?php print $device['lat'];?>, <?php print $device['lon'];?>),
-				title: "<?php print $device['description']. "\\n" . $device['description']. "\\n". utf8_encode($device['address']);?>",
+				title: "<?php print $device['description']. "\\n" . $device['hostname']. "\\n" . utf8_encode($device['address']);?>",
 				icon: iconBase + '<?php if ($device['disabled'] == 'on') print 'pingrey.png'; else if ($device['status']==1) print 'pin.png'; else if ($device['status']==2) print 'pinblue.png'; else print 'pingreen.png';?>'
 			} );
 			markers.push(marker);
-                        oms.addMarker(marker);
+			oms.addMarker(marker);
 <?php
 		}
 ?>
+
 		var markerCluster = new MarkerClusterer(map, markers, {imagePath: './images/m', maxZoom: 15});
 		google.maps.event.addDomListener(window, 'load', initMap);
     }
@@ -192,8 +192,9 @@ if( $maptools == '0' ) {
 	$gpslocation_longi = read_config_option('map_center_gps_longi');
 ?>
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.3.4/dist/leaflet.css" integrity="sha512-puBpdR0798OZvTTbP4A8Ix/l+A4dHDD0DGqYW6RQ+9jxkRFclaxxQb/SJAWZfWAkuyeQUytO7+7N4QKrDh+drA==" crossorigin="">
-    <script src="https://unpkg.com/leaflet@1.3.4/dist/leaflet.js" integrity="sha512-nMMmRyTVoLYqjP9hrbed9S+FzjZHW5gY1TWCHA5ckwXZBadntCNs8kEqAWdrb9O7rxbCaA4lKTIWjDXZxflOcA==" crossorigin=""></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.5.1/dist/leaflet.css" integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ==" crossorigin="">
+    <script src="https://unpkg.com/leaflet@1.5.1/dist/leaflet.js" integrity="sha512-GffPMF3RvMeYyc1LWMHtK8EbPv0iNZ8/oTtHPx9/cc2ILxQ+u905qIwdpULaqDkyBKgOaB57QTMg7ztg8Jm2Og==" crossorigin=""></script>
+
 
 	<link rel="stylesheet" href="<?php print $config['url_path'] ?>/plugins/map/MarkerCluster.css">
 	<link rel="stylesheet" href="<?php print $config['url_path'] ?>/plugins/map/MarkerCluster.Default.css">
@@ -248,7 +249,7 @@ if( $maptools == '0' ) {
 			icon: <?php if ($device['disabled'] == 'on') print 'pingrey'; else if ($device['status']==1) print 'pinred'; 
 			else if ($device['status']==2) print 'pinblue'; else print 'pingreen';?>} );
 
-			marker.bindPopup( "<?php print $device['description']. "<br>" .$device['hostname']. "<br>" . $device['address'];?>");
+			marker.bindPopup( "<?php print $device['description']. "<br>" . $device['hostname']. "<br>" . $device['address'];?>");
 
 		    markersCluster.addLayer(marker);
 

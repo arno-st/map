@@ -209,11 +209,11 @@ function map_utilities_action ($action) {
 	snmp_version, snmp_username, snmp_password, snmp_port, snmp_timeout, disabled, availability_method, 
 	ping_method, ping_port, ping_timeout, ping_retries, snmp_auth_protocol, snmp_priv_passphrase, 
 	snmp_priv_protocol, snmp_context FROM host WHERE snmp_version > '0' ORDER BY id");
-	if ( (sizeof($dbquery) > 0) && $action == 'map_rebuild' ){
+	if ( ($dbquery > 0) && $action == 'map_rebuild' ){
 		if ($action == 'map_rebuild') {
 		// Upgrade the map address table
 			foreach ($dbquery as $host) {
-				BuildLocation( $host );
+				BuildLocation( $host, true );
 			}
 		}
 		include_once('./include/top_header.php');
@@ -231,22 +231,20 @@ function map_setup_table () {
 
 function map_api_device_new( $host ) {
 map_log("BuildLocation host: " . $host['hostname'] ."\n");
-	BuildLocation( $host );
+	BuildLocation( $host, false );
 
 	return $host;
 }
 
-function  BuildLocation( $host ) {
+function  BuildLocation( $host, $force ) {
 	$snmp_sysLocation = ".1.3.6.1.2.1.1.6.0";
-	include_once($config["library_path"] . '/snmp.php');
-
-	/* id, hostname, snmp_community, 
+/* id, hostname, snmp_community, 
 		snmp_version, snmp_username, snmp_password, snmp_port, snmp_timeout, disabled, availability_method, 
 		ping_method, ping_port, ping_timeout, ping_retries, snmp_auth_protocol, snmp_priv_passphrase, 
 		snmp_priv_protocol, snmp_context */
 	// if snmp is not active return
 	// or if site_id is valid return
-	if( $host['availability_method'] == 3 || $host['site_id'] != 0 ) {
+	if( ( $host['availability_method'] == 3 || $host['site_id'] != 0 ) && $force != true ) {
 map_log("availability host: " . $host['hostname'] ."\n");
 		return $host;
 	}
@@ -261,12 +259,6 @@ map_log("availability host: " . $host['hostname'] ."\n");
 
 
 	// geocod it, many Google query but the address is the geocoded one
-	/* array format:
-                    $lati, 
-                    $longi, 
-                    $formatted_address,
-					$location (array of full detail)
-*/
 	if( $snmp_location == 'U' || empty($snmp_location) ) {
 map_log("error host: " . $host['hostname'] ." (".$host['id'].")\n");
 		return $host;
@@ -693,11 +685,10 @@ function map_device_action_execute($action) {
         if ($selected_items != false) {
                 if ($action == 'map_geocode' ) {
                         for ($i = 0; ($i < count($selected_items)); $i++) {
-								if ($action == 'map_geocode') {
-									$dbquery = db_fetch_assoc("SELECT * FROM host WHERE id=".$selected_items[$i]);
+				if ($action == 'map_geocode') {
+					$dbquery = db_fetch_assoc("SELECT * FROM host WHERE id=".$selected_items[$i]);
 map_log("Rebuild Mapping: ".$selected_items[$i]." - ".print_r($dbquery[0])." - ".$dbquery[0]['description']."\n");
-
-										map_api_device_new($dbquery[0]);
+					map_api_device_new($dbquery[0]);
                                 }
                         }
                  }
