@@ -21,7 +21,6 @@
  | http://www.cacti.net/                                                   |
  +-------------------------------------------------------------------------+
 */
-
 include_once($config['base_path'].'/lib/snmp.php');
 
 function plugin_map_install () {
@@ -132,10 +131,16 @@ function map_config_settings () {
 			),
 		"map_center" => array(
 			"friendly_name" => "Map center",
-			"description" => "Address to where whe should center the map (country;city;street,number).",
+			"description" => "Address to where where should center the map (country;city;street,number).",
 			"method" => "textbox",
 			"max_length" => 120,
 			"default" => ""
+			),
+		'map_do_geocoding' => array(
+			'friendly_name' => "Enable the geocoding of a device when it's saved",
+			'description' => "When a device is saved it will be geocoded, can take long internet time during mass discovery",
+			'method' => 'checkbox',
+			'default' => 'off',
 			),
 		'map_log_debug' => array(
 			'friendly_name' => 'Debug Log',
@@ -149,25 +154,6 @@ function map_config_settings () {
 		$settings['misc'] = array_merge($settings['misc'], $temp);
 	else
 		$settings['misc']=$temp;
-/*
-	if( get_request_var('action')=='save') {
-		$location = read_config_option('map_center');
-		$location = str_replace( ",", ";", $location );
-		$address = explode( ';', $location); // Suisse;Lausanne;Chemin de Pierre-de-Plan 4
-
-		$maptools = read_config_option('map_tools');
-		if( $maptools == '0' ) {
-			$gpslocation = GoogleGeocode($address);
-		} else if( $maptools == '1' ) {
-			$gpslocation = OpenStreetGeocode($address);
-		}
-	 	if( $gpslocation != false ) {
-			set_config_option('map_center_gps_lati', $gpslocation[0]);
-			set_config_option('map_center_gps_longi', $gpslocation[1]);
-		}
-	}
-
-*/
 }
 
 function map_show_tab () {
@@ -232,6 +218,11 @@ function map_setup_table () {
 }
 
 function map_api_device_new( $host ) {
+	$do_geocoding = read_config_option('map_do_geocoding');
+	if( !$do_geocoding ) {
+		return $host;
+	}
+
 map_log("BuildLocation host: " . $host['hostname'] ."\n");
 	BuildLocation( $host, false );
 
@@ -252,7 +243,9 @@ map_log("availability host: " . $host['hostname'] ."\n");
 	}
 	
 	// device is saved, take the snmplocation to check with database
-	$snmp_location = cacti_snmp_get_raw( $host['hostname'], $host['snmp_community'], $snmp_sysLocation, $host['snmp_version'], $host['snmp_username'], $host['snmp_password'], $host['snmp_auth_protocol'], $host['snmp_priv_passphrase'], $host['snmp_priv_protocol'], $host['snmp_context'] ); 
+	$snmp_location = cacti_snmp_get_raw( $host['hostname'], $host['snmp_community'], 
+	$snmp_sysLocation, $host['snmp_version'], $host['snmp_username'], $host['snmp_password'], 
+	$host['snmp_auth_protocol'], $host['snmp_priv_passphrase'], $host['snmp_priv_protocol'], $host['snmp_context'] ); 
 
 // make some cleanup
 	$snmp_location = trim( $snmp_location );
@@ -511,7 +504,11 @@ function FormalizedAddress( $resp ) {
 			$location['postal_code'] = $resp['address']['postcode'];
 			$location['country'] = $resp['address']['country'];
 			$location['state'] = $resp['address']['state'];
-			$location['address2'] =  $resp['address']['county'];
+			if ( !empty( $resp['address']['county']) ) {
+				$location['address2'] =  $resp['address']['county'];
+			} else  {
+				$location['address2'] = "unknown";
+			}
 			$location['lat'] = $lati;
 			$location['lon'] = $longi;
 			$location['types'] = $resp['category'];
@@ -567,7 +564,7 @@ function OpenStreetGeocode($locations){
 		// decode the json
 		$resp = json_decode($doc->textContent, true, 512 );
 
-        if( (json_last_error() === JSON_ERROR_NONE) && count($resp) > 0 ) {// get the important data
+        if( (json_last_error() == JSON_ERROR_NONE) && count($resp) > 0 ) {// get the important data
 			return FormalizedAddress($resp[0]);
 		} else {
 			map_log("OpenStreetmap json error: ".json_last_error()." loca: ".$url ."\n" );
@@ -610,7 +607,7 @@ function OpenStreetReverseGeocode ($lat, $lng ) {
 		// decode the json
 		$resp = json_decode($doc->textContent, true, 512 );
 
-        if( (json_last_error() === JSON_ERROR_NONE) && count($resp) > 0 ) {// get the important data
+        if( (json_last_error() == JSON_ERROR_NONE) && count($resp) > 0 ) {// get the important data
 			return FormalizedAddress($resp);
 		} else {
 			map_log("OpenStreetmap json error: ".json_last_error()."loca: ".$url ."\n" );
