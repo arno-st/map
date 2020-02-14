@@ -540,7 +540,7 @@ function OpenStreetGeocode($locations){
 	//// Suisse;Lausanne;Chemin de Pierre-de-Plan 4;-1;Local Telecom;;;46.54;6.56
     // url encode the address
 	
-	$address = $locations[2]." ".$locations[1]." ".$locations[0];
+	$address = $locations[2].",".$locations[1].",".$locations[0];
 	$address = str_replace( ' ', '%20', $address);
 
 	$url = "https://nominatim.openstreetmap.org/search/". $address. "?format=jsonv2&addressdetails=1&limit=1";
@@ -567,7 +567,7 @@ function OpenStreetGeocode($locations){
 		// decode the json
 		$resp = json_decode($doc->textContent, true, 512 );
 
-        if( json_last_error() === JSON_ERROR_NONE ) {// get the important data
+        if( (json_last_error() === JSON_ERROR_NONE) && count($resp) > 0 ) {// get the important data
 			return FormalizedAddress($resp[0]);
 		} else {
 			map_log("OpenStreetmap json error: ".json_last_error()." loca: ".$url ."\n" );
@@ -610,7 +610,7 @@ function OpenStreetReverseGeocode ($lat, $lng ) {
 		// decode the json
 		$resp = json_decode($doc->textContent, true, 512 );
 
-        if( json_last_error() === JSON_ERROR_NONE ) {// get the important data
+        if( (json_last_error() === JSON_ERROR_NONE) && count($resp) > 0 ) {// get the important data
 			return FormalizedAddress($resp);
 		} else {
 			map_log("OpenStreetmap json error: ".json_last_error()."loca: ".$url ."\n" );
