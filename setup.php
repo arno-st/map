@@ -22,6 +22,8 @@
  +-------------------------------------------------------------------------+
 */
 
+include_once($config['base_path'].'/lib/snmp.php');
+
 function plugin_map_install () {
 	api_plugin_register_hook('map', 'top_header_tabs', 'map_show_tab', 'setup.php');
 	api_plugin_register_hook('map', 'top_graph_header_tabs', 'map_show_tab', 'setup.php');
@@ -205,7 +207,7 @@ function map_utilities_list () {
 
 function map_utilities_action ($action) {
 	// get device list,  where snmp is active
-	$dbquery = db_fetch_assoc("SELECT id, hostname, snmp_community, 
+	$dbquery = db_fetch_assoc("SELECT id, hostname, site_id, snmp_community, 
 	snmp_version, snmp_username, snmp_password, snmp_port, snmp_timeout, disabled, availability_method, 
 	ping_method, ping_port, ping_timeout, ping_retries, snmp_auth_protocol, snmp_priv_passphrase, 
 	snmp_priv_protocol, snmp_context FROM host WHERE snmp_version > '0' ORDER BY id");
