@@ -687,7 +687,7 @@ function map_device_action_execute($action) {
 				if ($action == 'map_geocode') {
 					$dbquery = db_fetch_assoc("SELECT * FROM host WHERE id=".$selected_items[$i]);
 map_log("Rebuild Mapping: ".$selected_items[$i]." - ".print_r($dbquery[0])." - ".$dbquery[0]['description']."\n");
-					map_api_device_new($dbquery[0]);
+					BuildLocation( $dbquery[0], true );
                                 }
                         }
                  }
