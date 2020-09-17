@@ -38,3 +38,4 @@
 1.2.6 Fix some problem with escape string on location detection and geocoding with openstreetmap
 1.2.7 Used Spider function on GoogleMap, thanks to OverlappingMarkerSpiderfier
 1.2.8 Add a flag to let the user disable the geolocation on saved device, it take way to mutch Internet time during discovery
+1.2.9 Upgrade to Leafleet 1.7.1
