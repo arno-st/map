@@ -77,7 +77,10 @@ function map_check_upgrade () {
 
 	$version = plugin_map_version ();
 	$current = $version['version'];
-	$old = read_config_option('plugin_map_version');
+	$old     = db_fetch_cell('SELECT version
+		FROM plugin_config
+		WHERE directory="map"');
+
 	if ($current != $old) {
 
 		// Set the new version
