@@ -221,6 +221,7 @@ function map_setup_table () {
 }
 
 function map_api_device_new( $host ) {
+cacti_log('Enter Map', false, 'MAP' );
 	$do_geocoding = read_config_option('map_do_geocoding');
 	if( !$do_geocoding ) {
 		return $host;
