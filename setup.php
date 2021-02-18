@@ -222,7 +222,7 @@ function map_setup_table () {
 
 function map_api_device_new( $host_id ) {
 // check valid call
-	if( !array_key_exists('disabled', $host_id ) || !array_key_exists('id', $host_id) ) {
+	if( !array_key_exists('disabled', $host_id ) ) {
 		map_log('Not valid call: '. print_r($host_id, true) );
 		return $host_id;
 	}
