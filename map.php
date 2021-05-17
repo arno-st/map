@@ -33,8 +33,9 @@ load_current_session_value("description", "sess_map_host", "");
 $mapapikey = read_config_option('map_api_key');
 $maptools = read_config_option('map_tools');
 // check if extenddb is present, if so use it
-if( db_fetch_cell("SELECT directory FROM plugin_config WHERE directory='extenddb' AND status=1") != "") {
-	$extenddb = true;
+$sql_phone = '';
+if( ! db_fetch_cell("SELECT directory FROM plugin_config WHERE directory='extenddb' AND status=1") ) {
+	$sql_phone = "AND host.isPhone!='on'";
 }
 
 $sql_where  = '';
@@ -50,11 +51,11 @@ $sql_query = "SELECT host.id as 'id',
 		host.description as 'description', host.hostname as 'hostname', sites.latitude as 'lat', sites.longitude as 'lon', sites.address1 as 'address', host.disabled as 'disabled', host.status as 'status'
 		FROM host, sites
 		WHERE host.site_id=sites.id
-		AND IF( $extenddb, host.isPhone!='on', true)
+		$sql_phone
 		$sql_where 
 		ORDER BY host.id
 		";
-
+map_log('Map query: '.$sql_query);
 $result = db_fetch_assoc($sql_query);
 ?>
 
@@ -134,7 +135,7 @@ if( $maptools == '0' ) {
 	<script type="text/javascript" src="<?php print $config['url_path'] ?>plugins/map/markerclusterer.js"></script>
     <script async defer type="text/javascript" src="https://maps.googleapis.com/maps/api/js?<?php ($mapapikey != NULL)?print 'key='.$mapapikey."&":"" ?>callback=initMap"></script>
 
-    <script type="text/javascript" src="<?php print $config['url_path'] ?>plugins/map/oms.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/OverlappingMarkerSpiderfier/1.0.3/oms.min.js"></script>
 
 	<script defer type="text/javascript">
     // auto refresh every 5 minutes
