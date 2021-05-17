@@ -63,8 +63,8 @@ $result = db_fetch_assoc($sql_query);
 <!--
 
 function applyFilterChange(objForm) {
-	if( objForm.host.length > 0)
-		strURL = '&description=' + objForm.host.value;
+	if( objForm.description.length > 0)
+		strURL = '&description=' + objForm.description.value;
 	else strURL = '';
 	document.location = strURL;
 }
@@ -199,9 +199,9 @@ if( $maptools == '0' ) {
 <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
   integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
   crossorigin=""></script>
-	<link rel="stylesheet" href="<?php print $config['url_path'] ?>plugins/map/MarkerCluster.css">
-	<link rel="stylesheet" href="<?php print $config['url_path'] ?>plugins/map/MarkerCluster.Default.css">
-	<script src="<?php print $config['url_path'] ?>plugins/map/leaflet.markercluster.js"></script>
+	<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.3.0/dist/MarkerCluster.css">
+	<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.3.0/dist/MarkerCluster.Default.css">
+	<script src="https://unpkg.com/leaflet.markercluster@1.3.0/dist/leaflet.markercluster.js"></script>
   
 
 <div id="map" style="width: 800px; height: 600px;"></div>
@@ -261,7 +261,7 @@ if( $maptools == '0' ) {
 ?>
 		mymap.addLayer(markersCluster);
 
-	setTimeout(function(){ mymap.invalidateSize()}, 100);
+	setTimeout(function(){ mymap.invalidateSize()}, 10);
 </script>
 <?php
 }
