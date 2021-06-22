@@ -24,6 +24,7 @@
 include_once($config['base_path'].'/lib/snmp.php');
 
 function plugin_map_install () {
+	api_plugin_register_hook('map', 'page_head', 'map_header', 'setup.php');
 	api_plugin_register_hook('map', 'top_header_tabs', 'map_show_tab', 'setup.php');
 	api_plugin_register_hook('map', 'top_graph_header_tabs', 'map_show_tab', 'setup.php');
 	api_plugin_register_hook('map', 'draw_navigation_text', 'map_draw_navigation_text', 'setup.php');
@@ -31,7 +32,7 @@ function plugin_map_install () {
 	api_plugin_register_hook('map', 'api_device_new', 'map_api_device_new', 'setup.php');
 	api_plugin_register_hook('map', 'utilities_action', 'map_utilities_action', 'setup.php');
 	api_plugin_register_hook('map', 'utilities_list', 'map_utilities_list', 'setup.php');
-
+	
 // Device action
     api_plugin_register_hook('map', 'device_action_array', 'map_device_action_array', 'setup.php');
     api_plugin_register_hook('map', 'device_action_execute', 'map_device_action_execute', 'setup.php');
@@ -97,12 +98,62 @@ function map_check_upgrade () {
 		db_execute("DROP TABLE IF EXISTS `plugin_map_coordinate`;");
 		db_execute("DROP TABLE IF EXISTS `plugin_map_host`;");
 	}
+	if( $old < '1.3.1' ) {
+		api_plugin_register_hook('map', 'page_head', 'map_header', 'setup.php');
+	}
 }
 
 function plugin_map_version () {
 	global $config;
 	$info = parse_ini_file($config['base_path'] . '/plugins/map/INFO', true);
 	return $info['info'];
+}
+
+function map_header() {
+	global $config;
+	$mapapikey = read_config_option('map_api_key');
+
+	if( read_config_option('map_tools') == 0 ){
+?>
+		<style>
+		#map-container {
+			padding: 6px;
+			border-width: 1px;
+			border-style: solid;
+			border-color: #ccc #ccc #999 #ccc;
+			-webkit-box-shadow: rgba(64, 64, 64, 0.5) 0 2px 5px;
+			-moz-box-shadow: rgba(64, 64, 64, 0.5) 0 2px 5px;
+			box-shadow: rgba(64, 64, 64, 0.1) 0 2px 5px;
+			width: 1024px;
+		}
+		#map {
+			width: 1024px;
+			height: 768px;
+		}
+		</style>
+	
+		<script type="text/javascript" src="<?php print $config['url_path'] ?>plugins/map/markerclusterer.js"></script>
+		<script async defer type="text/javascript" src="https://maps.googleapis.com/maps/api/js?<?php ($mapapikey != NULL)?print 'key='.$mapapikey."&":"" ?>callback=initMap"></script>
+	
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/OverlappingMarkerSpiderfier/1.0.3/oms.min.js"></script>
+<?php
+	} else {
+?>
+
+	<script src='https://api.tiles.mapbox.com/mapbox-gl-js/v2.2.0/mapbox-gl.js'></script>
+	<link href="<?php print $config['url_path'] ?>plugins/map/mapbox-gl.css" type='text/css' rel='stylesheet'/>
+	
+	<style>
+		#map {   
+			width: 800px;
+			height: 600px;
+			top: 0; 
+			bottom: 0;
+		}
+	</style>
+<?php
+ }
+
 }
 
 function map_config_settings () {
@@ -199,7 +250,11 @@ function map_utilities_action ($action) {
 	$dbquery = db_fetch_assoc("SELECT id, hostname, site_id, snmp_community, 
 	snmp_version, snmp_username, snmp_password, snmp_port, snmp_timeout, disabled, availability_method, 
 	ping_method, ping_port, ping_timeout, ping_retries, snmp_auth_protocol, snmp_priv_passphrase, 
-	snmp_priv_protocol, snmp_context FROM host WHERE snmp_version > '0' ORDER BY id");
+	snmp_priv_protocol, snmp_context FROM host 
+	WHERE snmp_version > '0' 
+	AND status = 3
+	AND disabled != 'on'	
+	ORDER BY id");
 	if ( ($dbquery > 0) && $action == 'map_rebuild' ){
 		if ($action == 'map_rebuild') {
 		// Upgrade the map address table
@@ -237,7 +292,7 @@ map_log('Enter Map: '.$host_id['description'].'('.$host_id['id'].')' );
 	
 map_log('Exit Map' );
 
-	return $host;
+	return $host_id;
 }
 
 function  BuildLocation( $host, $force ) {
@@ -248,10 +303,12 @@ function  BuildLocation( $host, $force ) {
 		snmp_priv_protocol, snmp_context */
 	// if snmp is not active return
 	// or if site_id is valid return
-	if( ( $host['availability_method'] == 3 || $host['site_id'] != 0 ) && $force != true ) {
+	if( array_key_exists('availability_method', $host ) && array_key_exists('site_id', $host ) ) {
+		if( ( $host['availability_method'] == 3 || $host['site_id'] != 0 ) && $force != true ) {
 map_log("availability host: " . $host['hostname'] ."\n");
-		return $host;
-	}
+			return $host;
+		}
+	} else if( $force != true ) return $host;
 	
 	// device is saved, take the snmplocation to check with database
 	$snmp_location = cacti_snmp_get_raw( $host['hostname'], $host['snmp_community'], 
@@ -345,7 +402,7 @@ function geocod_address( $snmp_location ) {
 		}
 		
 	} else {
-		map_log("Snmp location error: ".var_dump($address)."\n" );
+		map_log("Snmp location error: ".print_r($address)."\n" );
 		$gpslocation = false;
 	}
 	return $gpslocation;
@@ -355,7 +412,6 @@ function geocod_address( $snmp_location ) {
 function GoogleReverGeocode ($lat, $lng ) {
 	global $config;
 	$mapapikey = read_config_option('map_api_key');
-
     // google map geocode api url
 	if( $mapapikey != null)
 		$url = "https://maps.googleapis.com/maps/api/geocode/json?latlng=".$lat.",".$lng."&key={$mapapikey}&sensor=true";
@@ -512,7 +568,9 @@ function FormalizedAddress( $resp ) {
 			} else {
 				$location['city'] = "unknown";
 			}
-			$location['postal_code'] = $resp['address']['postcode'];
+			if ( !empty($resp['address']['postcode']) ) {
+				$location['postal_code'] = $resp['address']['postcode'];
+			} else $location['postal_code'] = '0000';
 			$location['country'] = $resp['address']['country'];
 			$location['state'] = $resp['address']['state'];
 			if ( !empty( $resp['address']['county']) ) {
@@ -708,26 +766,27 @@ map_log("Rebuild Mapping: ".$selected_items[$i]." - ".print_r($dbquery[0])." - "
 }
 
 function map_device_action_prepare($save) {
-        global $host_list;
-
-        $action = $save['drp_action'];
-
-        if ($action != 'map_geocode' ) {
-                return $save;
-        }
-
-        if ($action == 'map_geocode' ) {
-                if ($action == 'map_geocode') {
-                        $action_description = 'Geocode';
-                }
-
-                print "<tr>
-                        <td colspan='2' class='even'>
-                                <p>" . __('Click \'Continue\' to %s on these Device(s)', $action_description) . "</p>
-                                <p><div class='itemlist'><ul>" . $save['host_list'] . "</ul></div></p>
-                        </td>
-                </tr>";
-        }
+	global $host_list;
+	
+	$action = $save['drp_action'];
+	
+	if ($action != 'map_geocode' ) {
+		return $save;
+	}
+	
+	if ($action == 'map_geocode' ) {
+		if ($action == 'map_geocode') {
+				$action_description = 'Geocode';
+		}
+	
+		print "<tr>
+				<td colspan='2' class='even'>
+						<p>" . __('Click \'Continue\' to %s on these Device(s)', $action_description) . "</p>
+						<p><div class='itemlist'><ul>" . $save['host_list'] . "</ul></div></p>
+				</td>
+		</tr>";
+	}
+	return $save;
 }
 
 function map_device_action_array($device_action_array) {

@@ -30,22 +30,46 @@ map_check_upgrade();
 
 /* remember these search fields in session vars so we don't have to keep passing them around */
 load_current_session_value("description", "sess_map_host", "");
+load_current_session_value("down_device", "sess_map_down", "");
 $mapapikey = read_config_option('map_api_key');
 $maptools = read_config_option('map_tools');
-// check if extenddb is present, if so use it
+
+$gpslocation = geocod_address( read_config_option('map_center') );
+$gpslocation_lati = $gpslocation[0];
+$gpslocation_longi = $gpslocation[1];
+
+map_log('get: '. print_r($_GET, true ) );
+map_log('cacti get: '. print_r($_CACTI_REQUEST, true ) );
+
+		// check if extenddb is present, if so use it
 $sql_phone = '';
 if( ! db_fetch_cell("SELECT directory FROM plugin_config WHERE directory='extenddb' AND status=1") ) {
 	$sql_phone = "AND host.isPhone!='on'";
 }
 
 $sql_where  = '';
-$description       = get_request_var_request("description");
-
-if ($description != '') {
-	$sql_where .= " AND " . "host.description like '%$description%'";
+// down_device only
+if (!isempty_request_var('down_device')) {
+	set_request_var('down_device', sanitize_search_string(get_request_var("down_device")) );
+	if( get_request_var("down_device") == 1 ) {
+		$sql_where .= " AND host.status = 1";
+	} 
+} else {
+	unset($_REQUEST["down_device"]);
+	kill_session_var("sess_map_down");
 }
 
-general_header();
+// Description of specific device
+if (!isempty_request_var('description') ) {
+	set_request_var('description', sanitize_search_string(get_request_var("description")) );
+	$description = get_request_var("description");
+	map_log('has description');
+	$sql_where .= " AND host.description like '%$description%'";
+} else {
+	map_log('has no description');
+	unset($_REQUEST["description"]);
+	kill_session_var("sess_map_host");
+}
 
 $sql_query = "SELECT host.id as 'id', 
 		host.description as 'description', host.hostname as 'hostname', sites.latitude as 'lat', sites.longitude as 'lon', sites.address1 as 'address', host.disabled as 'disabled', host.status as 'status'
@@ -57,22 +81,30 @@ $sql_query = "SELECT host.id as 'id',
 		";
 map_log('Map query: '.$sql_query);
 $result = db_fetch_assoc($sql_query);
+
+general_header();
+
 ?>
 
 <script type="text/javascript">
 <!--
 
 function applyFilterChange(objForm) {
-	if( objForm.description.length > 0)
-		strURL = '&description=' + objForm.description.value;
-	else strURL = '';
+	strURL = 'map.php';
+	if( objForm.description.length > 0) {
+		strURL += '&description=' + objForm.description.value;
+		strURL +=  '&down_device=' + objForm.down_device.value;
+	};
 	document.location = strURL;
 }
+
 function clearFilter() {
 	<?php
 		kill_session_var("sess_map_host");
+		kill_session_var("sess_map_down");
 
 		unset($_REQUEST["description"]);
+		unset($_REQUEST["down_device"]);
 	?>
 	strURL  = 'map.php?header=false';
 	loadPageNoHeader(strURL);
@@ -82,13 +114,15 @@ function clearFilter() {
 </script>
 
 <?php
+
 // TOP DEVICE SELECTION
 html_start_box('<strong>Filters</strong>', '100%', '', '3', 'center', '');
 
 ?>
 <meta charset="utf-8"/>
-	<td class="noprint">
-	<form style="padding:0px;margin:0px;" name="form" method="get" action="<?php print $config['url_path'];?>plugins/map/map.php">
+<tr>
+<td class="noprint">
+        <form style="padding:0px;margin:0px;" name="form" method="get" action="<?php print $config['url_path'];?>plugins/map/map.php">
 		<table width="100%" cellpadding="0" cellspacing="0">
 			<tr class="noprint">
 				<td nowrap style='white-space: nowrap;' width="1">
@@ -96,6 +130,12 @@ html_start_box('<strong>Filters</strong>', '100%', '', '3', 'center', '');
 				</td>
 				<td width="1">
 					<input type="text" name="description" size="25" value="<?php print get_request_var_request("description");?>">
+				</td>
+				<td nowrap style='white-space: nowrap;' width="1">
+					&nbsp;&nbsp;Down device Only:&nbsp;&nbsp;
+				</td>
+				<td width="1">
+					<input type="checkbox" name="down_device" value="1" <?php (get_request_var_request("down_device")=='1')?print " checked":print "" ?>>
 				</td>
 				<td nowrap style='white-space: nowrap;'>
 					<input type="submit" value="Go" title="Set/Refresh Filters">
@@ -115,27 +155,6 @@ html_start_box('', '100%', '', '3', 'center', '');
 if( $maptools == '0' ) {
 //************************************************************************* GoogleMap
 	?>
-    <style>
-      #map-container {
-        padding: 6px;
-        border-width: 1px;
-        border-style: solid;
-        border-color: #ccc #ccc #999 #ccc;
-        -webkit-box-shadow: rgba(64, 64, 64, 0.5) 0 2px 5px;
-        -moz-box-shadow: rgba(64, 64, 64, 0.5) 0 2px 5px;
-        box-shadow: rgba(64, 64, 64, 0.1) 0 2px 5px;
-        width: 1024px;
-      }
-      #map {
-        width: 1024px;
-        height: 768px;
-      }
-    </style>
-
-	<script type="text/javascript" src="<?php print $config['url_path'] ?>plugins/map/markerclusterer.js"></script>
-    <script async defer type="text/javascript" src="https://maps.googleapis.com/maps/api/js?<?php ($mapapikey != NULL)?print 'key='.$mapapikey."&":"" ?>callback=initMap"></script>
-
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/OverlappingMarkerSpiderfier/1.0.3/oms.min.js"></script>
 
 	<script defer type="text/javascript">
     // auto refresh every 5 minutes
@@ -144,10 +163,6 @@ if( $maptools == '0' ) {
     }, 300000);
 
 	window.initMap = function() {
-		<?php
-		$gpslocation_lati = read_config_option('map_center_gps_lati');
-		$gpslocation_longi = read_config_option('map_center_gps_longi');
-		?>
         var center = new google.maps.LatLng(<?php print $gpslocation_lati .",". $gpslocation_longi ?>);
         var map = new google.maps.Map(document.getElementById('map'), {
           zoom: 10,
@@ -155,8 +170,10 @@ if( $maptools == '0' ) {
           mapTypeId: google.maps.MapTypeId.ROADMAP
         });
 
-	var oms = new OverlappingMarkerSpiderfier(map, {keepSpiderfied : true, 
-			markersWontMove : false, 
+	var oms = new OverlappingMarkerSpiderfier(map, {
+			keepSpiderfied : true, 
+			markersWontMove : true,
+			markersWontHide: true,
 			circleSpiralSwitchover: 5});
 		
 		var markers = [];
@@ -169,7 +186,7 @@ if( $maptools == '0' ) {
 			var marker = new google.maps.Marker( {
 				position: new google.maps.LatLng(<?php print $device['lat'];?>, <?php print $device['lon'];?>),
 				title: "<?php print $device['description']. "\\n" . $device['hostname']. "\\n" . utf8_encode($device['address']);?>",
-				icon: iconBase + '<?php if ($device['disabled'] == 'on') print 'pingrey.png'; else if ($device['status']==1) print 'pin.png'; else if ($device['status']==2) print 'pinblue.png'; else print 'pingreen.png';?>'
+				icon: iconBase + '<?php if ($device['disabled'] == 'on') print 'pingrey.png'; else if ($device['status']==1) print 'pinred.png'; else if ($device['status']==2) print 'pinblue.png'; else print 'pingreen.png';?>'
 			} );
 			markers.push(marker);
 			oms.addMarker(marker);
@@ -177,7 +194,13 @@ if( $maptools == '0' ) {
 		}
 ?>
 
-		var markerCluster = new MarkerClusterer(map, markers, {imagePath: './images/m', maxZoom: 15});
+		var clusterOptions = {
+			ignoreHidden: true,
+			zoomOnClick: true,
+			imagePath:'./images/m',
+			maxZoom: 15,
+		}
+		var markerCluster = new MarkerClusterer(map, markers, clusterOptions );
 		google.maps.event.addDomListener(window, 'load', initMap);
     }
  
@@ -189,83 +212,202 @@ if( $maptools == '0' ) {
 <?php
 } else {
 //************************************************ OpenStreetMAP
-	$gpslocation_lati = read_config_option('map_center_gps_lati');
-	$gpslocation_longi = read_config_option('map_center_gps_longi');
 ?>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
-  integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
-  crossorigin=""/>
-<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
-  integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
-  crossorigin=""></script>
-	<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.3.0/dist/MarkerCluster.css">
-	<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.3.0/dist/MarkerCluster.Default.css">
-	<script src="https://unpkg.com/leaflet.markercluster@1.3.0/dist/leaflet.markercluster.js"></script>
-  
-
-<div id="map" style="width: 800px; height: 600px;"></div>
+</table>
+<div id='map'>
 <script>
-    var mymap = L.map('map', {center: [<?php print $gpslocation_lati .",". $gpslocation_longi ?>], zoom: 13} );
-	var tiles = L.tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token=pk.eyJ1IjoiYXJubyIsImEiOiJjajhvbW5mcjQwNHh3MzhxdXR3Y3lrOGJ4In0.Z9KUWZsed2piLTZxwlg0Ng', {
-        maxZoom: 18,
-        attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, ' +
-            '<a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
-            'Imagery Â© <a href="https://www.mapbox.com/">Mapbox</a>',
-        id: 'mapbox/streets-v11',
-		tileSize: 512,
-		zoomOffset: -1,
-		accessToken: 'pk.eyJ1IjoiYXJubyIsImEiOiJjajhvbW5mcjQwNHh3MzhxdXR3Y3lrOGJ4In0.Z9KUWZsed2piLTZxwlg0Ng'
-    }).addTo(mymap);
 
-    var pingrey = L.icon ({
-    iconUrl: './images/pingrey.png',
-    iconSize: [30,48],
-    iconAnchor: [15,48],
-    });
+	mapboxgl.accessToken = 'pk.eyJ1IjoiYXJubyIsImEiOiJjajhvbW5mcjQwNHh3MzhxdXR3Y3lrOGJ4In0.Z9KUWZsed2piLTZxwlg0Ng';
 
-    var pingreen = L.icon ({
-    iconUrl: './images/pingreen.png',
-    iconSize: [30,48],
-    iconAnchor: [15,48],
-    });
-
-    var pinblue = L.icon ({
-    iconUrl: './images/pinblue.png',
-    iconSize: [30,48],
-    iconAnchor: [15,48],
-    });
-
-    var pinred = L.icon ({
-    iconUrl: './images/pin.png',
-    iconSize: [30,48],
-    iconAnchor: [15,48],
-    });
-
- 	var markersCluster = L.markerClusterGroup();
+    var map = new mapboxgl.Map({
+		container: 'map',
+		style: 'mapbox://styles/mapbox/streets-v11', // satellite-v9 ou streets-v11', 
+		center: [6.6188865,46.5228798],
+		zoom: 13
+		});
+		
+	// Create a popup, but don't add it to the map yet.
+	var popup = new mapboxgl.Popup({
+		closeButton: false,
+		closeOnClick: false
+	});
+	
+	map.on('load', function() {
+		
+		map.addSource('places', {
+		'type': 'geojson',
+		'cluster': true,
+		'clusterRadius': 25,
+		'clusterProperties': {
+			'number':['+', 1]
+			},
+		'data': {
+			'type': 'FeatureCollection',
+			'features': [
 <?php
-		foreach( $result as $device ) {
-		// get latitude, longitude and formatted address
+				foreach( $result as $device ) {
+				// get latitude, longitude and formatted address
+?>	
+					{
+						'type': 'Feature',
+						'properties': {
+							'description':
+								"<?php print $device['description']. "<br>" . $device['hostname']. "<br>" . $device['address'];?>",
+								'status': '<?php if ($device['disabled'] == 'on') print 'disabled'; else if ($device['status']==1) print 'down'; else if ($device['status']==2) print 'recovering'; else if ($device['status']==3) print 'up'; else print 'unknown';?>'
+						},
+						'geometry': {
+							'type': 'Point',
+							'coordinates': [<?php print $device['lon'];?>, <?php print $device['lat'];?>]
+						}
+					},
+<?php	
+				}
 ?>
-			var marker = new L.marker([<?php print $device['lat'];?>, <?php print $device['lon'];?>],
-            {title: "<?php print $device['description']?>", 
-			icon: <?php if ($device['disabled'] == 'on') print 'pingrey'; else if ($device['status']==1) print 'pinred'; 
-			else if ($device['status']==2) print 'pinblue'; else print 'pingreen';?>} );
+			]}
+		});
+	
+		map.addLayer({
+			id: 'cluster_places',
+			type: 'circle',
+			source: 'places',
+			filter: ['has', 'point_count'],
+			paint: {
+				// Use step expressions (https://docs.mapbox.com/mapbox-gl-js/style-spec/#expressions-step)
+				// with three steps to implement three types of circles:
+				//   * Blue, 20px circles when point count is less than 5
+				//   * Yellow, 30px circles when point count is between 5 and 15
+				//   * Pink, 40px circles when point count is greater than or equal to 15
+				'circle-color': [
+					'step',
+					['get', 'point_count'],
+					'#51bbd6',
+					5,
+					'#f1f075',
+					15,
+					'#f28cb1'
+				],
+				'circle-radius': [
+					'step',
+					['get', 'point_count'],
+					20,
+					5,
+					30,
+					15,
+					40
+				]
+			}
+		});
+ 
+ 
+// Add a layer showing the number of point in the cluster.
+		map.addLayer({
+			id: 'cluster_count_places',
+			type: 'symbol',
+			source: 'places',
+			filter: ['has', 'point_count'],
+			layout: {
+				'text-field': '{point_count_abbreviated}',
+				'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
+				'text-size': 12
+			}
+		});
+ 
+ // Add a layer showing the points.
+		map.addLayer({
+			'id': 'points',
+			'type': 'circle',
+			'source': 'places',
+			'filter': ['!', ['has', 'point_count']],
+			'paint': {
+					// make circles larger as the user zooms from z12 to z22
+				'circle-radius': {
+					'base': 1.75,
+					'stops': [
+						[10, 10],
+						[22, 15]
+					]
+				},
+				'circle-color': [
+					'match',
+					['get', 'status'],
+					'disabled',
+					'black',
+					'down',
+					'red',
+					'up',
+					'green',
+					'recovering',
+					'orange',
+					'blue'
+					]
+			}
+		});
 
-			marker.bindPopup( "<?php print $device['description']. "<br>" . $device['hostname']. "<br>" . $device['address'];?>");
-
-		    markersCluster.addLayer(marker);
-
-<?php
-		}
-?>
-		mymap.addLayer(markersCluster);
-
-	setTimeout(function(){ mymap.invalidateSize()}, 10);
+		map.on('mouseenter', 'points', function (e) {
+			// Change the cursor style as a UI indicator.
+			map.getCanvas().style.cursor = 'Pointer';
+			
+			var coordinates = e.features[0].geometry.coordinates.slice();
+			var description = e.features[0].properties.description;
+			var status = e.features[0].properties.status;
+			
+			// Ensure that if the map is zoomed out such that multiple
+			// copies of the feature are visible, the popup appears
+			// over the copy being Pointed to.
+			while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+				coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+			}
+			
+			// Populate the popup and set its coordinates
+			// based on the feature found.
+			// if we have more than one point it's a cluster, otherwise it's a place
+			popup.setLngLat(coordinates).setHTML(description+'<br>'+status).addTo(map);
+		});
+			
+		map.on('mouseleave', 'points', function () {
+			map.getCanvas().style.cursor = '';
+			popup.remove();
+		});
+		
+// cluster view management
+		map.on('mouseenter', 'cluster_places', function (e) {
+			// Change the cursor style as a UI indicator.
+			map.getCanvas().style.cursor = 'Pointer';
+		});
+		
+		map.on('click', 'cluster_places', function (e) {
+			// click onthe cluster, then zoom it
+			map.setCenter(e.lngLat);
+			map.setZoom( map.getZoom() + 1);
+	        
+			var features = map.queryRenderedFeatures(e.point, { layers: ['cluster_places'] });
+			console.log('queryRenderedFeatures', features);
+			clusterSource = map.getSource('places');
+			if( features.length > 0 ) {
+				var clusterId = features[0].properties.cluster_id,
+				point_count = features[0].properties.point_count,
+				clusterSource;
+			}		
+/*			
+			// Get Next level cluster Children
+			clusterSource.getClusterChildren(clusterId, function(err, aFeatures){
+				console.log('getClusterChildren', err, aFeatures);
+			});
+			
+			// Get all points under a cluster
+			clusterSource.getClusterLeaves(clusterId, point_count, 0, function(err, aFeatures){
+				console.log('getClusterLeaves', err, aFeatures);
+			})
+*/
+		});
+			
+	});
 </script>
 <?php
 }
-html_end_box(false);
+
+html_end_box(false, true);
 
 bottom_footer();
 
