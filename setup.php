@@ -114,6 +114,7 @@ function map_header() {
 	$mapapikey = read_config_option('map_api_key');
 
 	if( read_config_option('map_tools') == 0 ){
+		//******************** GoogleMap
 ?>
 		<style>
 		#map-container {
@@ -138,15 +139,16 @@ function map_header() {
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/OverlappingMarkerSpiderfier/1.0.3/oms.min.js"></script>
 <?php
 	} else {
+		//******************* OpenStreet Map
 ?>
 
 	<script src='https://api.tiles.mapbox.com/mapbox-gl-js/v2.2.0/mapbox-gl.js'></script>
-	<link href="<?php print $config['url_path'] ?>plugins/map/mapbox-gl.css" type='text/css' rel='stylesheet'/>
+	<link href="https://api.tiles.mapbox.com/mapbox-gl-js/v2.2.0/mapbox-gl.css" type='text/css' rel='stylesheet'/>
 	
 	<style>
 		#map {   
-			width: 800px;
-			height: 600px;
+			width: 1024px;
+			height: 768px;
 			top: 0; 
 			bottom: 0;
 		}

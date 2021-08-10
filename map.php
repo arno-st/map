@@ -212,6 +212,7 @@ if( $maptools == '0' ) {
 <?php
 } else {
 //************************************************ OpenStreetMAP
+map_log('Map location: '.$gpslocation_longi.','. $gpslocation_lati);
 ?>
 
 </table>
@@ -223,8 +224,8 @@ if( $maptools == '0' ) {
     var map = new mapboxgl.Map({
 		container: 'map',
 		style: 'mapbox://styles/mapbox/streets-v11', // satellite-v9 ou streets-v11', 
-		center: [6.6188865,46.5228798],
-		zoom: 13
+		center: [<?php print $gpslocation_longi;?>, <?php print $gpslocation_lati;?>],
+		zoom: 12
 		});
 		
 	// Create a popup, but don't add it to the map yet.
@@ -292,9 +293,9 @@ if( $maptools == '0' ) {
 					['get', 'point_count'],
 					20,
 					5,
-					30,
+					20,
 					15,
-					40
+					20
 				]
 			}
 		});
@@ -372,14 +373,42 @@ if( $maptools == '0' ) {
 		
 // cluster view management
 		map.on('mouseenter', 'cluster_places', function (e) {
-			// Change the cursor style as a UI indicator.
-			map.getCanvas().style.cursor = 'Pointer';
+			// if max zoom display list of device on cluster
+			if( map.getZoom() >= 15 ) {
+			// Get all points under a cluster
+				var features = map.queryRenderedFeatures(e.point, { layers: ['cluster_places'] });
+				clusterSource = map.getSource('places');
+				if( features.length > 0 ) {
+					var clusterId = features[0].properties.cluster_id,
+					point_count = features[0].properties.point_count, clusterSource;
+				}		
+				var text='';
+				clusterSource.getClusterLeaves(clusterId, point_count, 0, function(err, aFeatures){
+					for (let i = 0; i < point_count; i++ ){
+						text += aFeatures[i].properties.description+'<br>';
+					}					
+					popup.setLngLat(e.lngLat).setHTML(text).addTo(map);
+				})
+
+			} else map.getCanvas().style.cursor = 'Pointer';
+
+		});
+		
+		map.on('mouseleave', 'cluster_places', function (e) {
+			popup.remove();
+			map.getCanvas().style.cursor = '';
 		});
 		
 		map.on('click', 'cluster_places', function (e) {
 			// click onthe cluster, then zoom it
 			map.setCenter(e.lngLat);
-			map.setZoom( map.getZoom() + 1);
+			if( map.getZoom() < 15 ) {
+			  map.setZoom( map.getZoom() + 1);
+			} else {
+				popup.remove();
+				map.setZoom(15);
+				map.getCanvas().style.cursor = '';
+			}
 	        
 			var features = map.queryRenderedFeatures(e.point, { layers: ['cluster_places'] });
 			console.log('queryRenderedFeatures', features);
