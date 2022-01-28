@@ -37,9 +37,11 @@ $maptools = read_config_option('map_tools');
 $gpslocation = geocod_address( read_config_option('map_center') );
 $gpslocation_lati = $gpslocation[0];
 $gpslocation_longi = $gpslocation[1];
+map_log('Map gpslocation: '.print_r($gpslocation, true));
 
 map_log('get: '. print_r($_GET, true ) );
 map_log('cacti get: '. print_r($_CACTI_REQUEST, true ) );
+unset($_REQUEST["headercontent"]);
 
 		// check if extenddb is present, if so use it
 $sql_phone = '';
@@ -106,8 +108,8 @@ function clearFilter() {
 		unset($_REQUEST["description"]);
 		unset($_REQUEST["down_device"]);
 	?>
-	strURL  = 'map.php?header=false';
-	loadPageNoHeader(strURL);
+	strURL  = 'map.php?description=';
+	document.location = strURL;
 	}
 
 -->
@@ -418,17 +420,6 @@ map_log('Map location: '.$gpslocation_longi.','. $gpslocation_lati);
 				point_count = features[0].properties.point_count,
 				clusterSource;
 			}		
-/*			
-			// Get Next level cluster Children
-			clusterSource.getClusterChildren(clusterId, function(err, aFeatures){
-				console.log('getClusterChildren', err, aFeatures);
-			});
-			
-			// Get all points under a cluster
-			clusterSource.getClusterLeaves(clusterId, point_count, 0, function(err, aFeatures){
-				console.log('getClusterLeaves', err, aFeatures);
-			})
-*/
 		});
 			
 	});

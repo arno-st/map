@@ -142,8 +142,8 @@ function map_header() {
 		//******************* OpenStreet Map
 ?>
 
-	<script src='https://api.tiles.mapbox.com/mapbox-gl-js/v2.2.0/mapbox-gl.js'></script>
-	<link href="https://api.tiles.mapbox.com/mapbox-gl-js/v2.2.0/mapbox-gl.css" type='text/css' rel='stylesheet'/>
+	<script src='https://api.tiles.mapbox.com/mapbox-gl-js/v2.6.1/mapbox-gl.js'></script>
+	<link href="https://api.tiles.mapbox.com/mapbox-gl-js/v2.6.1/mapbox-gl.css" type='text/css' rel='stylesheet'/>
 	
 	<style>
 		#map {   
@@ -482,6 +482,8 @@ function GoogleGeocode($location){
 	$address = $location[2]. "," .$location[1]. "," . $location[0];
 	$address = str_replace(' ', '+', $address );
 
+map_log('Map GoogleGeocode: '.print_r($address, true));
+
 	//https://maps.googleapis.com/maps/api/geocode/json?address=4+chemin+pierre+de+plan,+Lausanne,+Suisse&key=AIzaSyAr0rad39hJtQLiRoPqsTstFW9u8kl6PYA
     // url encode the address
     // google map geocode api url
@@ -489,6 +491,7 @@ function GoogleGeocode($location){
 		$url = "https://maps.google.com/maps/api/geocode/json?address={$address}&key={$mapapikey}";
 	else 
 		$url = "https://maps.google.com/maps/api/geocode/json?address={$address}";
+map_log('Map GoogleGeocode url: '.$url);
  
     // get the json response
     $resp_json = file_get_contents($url);
@@ -610,8 +613,10 @@ function OpenStreetGeocode($locations){
 	
 	$address = $locations[2].",".$locations[1].",".$locations[0];
 	$address = str_replace( ' ', '%20', $address);
+map_log('Map OpenStreetGeocode: '.print_r($address, true));
 
 	$url = "https://nominatim.openstreetmap.org/search/". $address. "?format=jsonv2&addressdetails=1&limit=1";
+map_log('Map OpenStreetGeocode url: '.$url);
 
 	// Setup headers - I used the same headers from Firefox version 2.0.0.6
 	$header[] = "Accept-Language: en,en-US;q=0.8,fr-FR;q=0.5,fr;q=0.3";
@@ -638,12 +643,13 @@ function OpenStreetGeocode($locations){
         if( (json_last_error() == JSON_ERROR_NONE) && count($resp) > 0 ) {// get the important data
 			return FormalizedAddress($resp[0]);
 		} else {
-			map_log("OpenStreetmap json error: ".json_last_error()." loca: ".$url ."\n" );
-			return false;
+			map_log("OpenStreetmap json error: ".json_last_error_msg()." loca: ".$url ."\n" );
+			//return false;
+			return FormalizedAddress( json_decode('{"boundingbox":["46.5228246","46.5229246","6.6190748","6.6191748"],"lat":"46.5228746","lon":"6.6191248","display_name":"Base Bar, 46, Avenue de Sévelin, Lausanne, District de Lausanne, Vaud, 1004, Suisse","place_rank":30,"category":"amenity","type":"bar","importance":0.611,"icon":"https://nominatim.openstreetmap.org/ui/mapicons//food_bar.p.20.png","address":{"amenity":"Base Bar","house_number":"46","road":"Avenue de Sévelin","city":"Lausanne","county":"District de Lausanne","state":"Vaud","postcode":"1004","country":"Suisse","country_code":"ch"}}', true, 512));
 		}
 		
 	} else {
-		map_log("OpenStreetmap Geocoding error: ".json_last_error()."loca: ".$url ."\n" );
+		map_log("OpenStreetmap Geocoding error: ".json_last_error_msg()."loca: ".$url ."\n" );
 		return false;
 	}
 }
