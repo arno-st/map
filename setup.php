@@ -288,7 +288,7 @@ function map_api_device_new( $host_id ) {
 	if( !$do_geocoding ) {
 		return $host_id;
 	}
-map_log('Enter Map: '.$host_id['description'].'('.$host_id['id'].')' );
+map_log('Enter Map: '.$host_id['description'] );
 
 	BuildLocation( $host_id, false );
 	
