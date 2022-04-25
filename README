@@ -14,7 +14,25 @@
 
 ----[ Installation
 
-	To install the plugin, please refer to the Plugin Installation Documentation
+	It use the site table from cacti.
+	If your table is empty, it will be 'geocoded' from the device.
+	In this case each device need to have the following snmp setting:
+	snmp-server location Country;City;Street_Building;Floor;Room;Rack;RU;Lat;Long
+	
+	Lat; long is used if you don't have the street correct, like an equipment in middle of nowhere. but you still need to have all the filed, at least the ;
+	
+	On the Cacti Configuration page, under misc, you have a few line:
+	choose if you want to use google map or openstreet map.
+	if google map is coosen, you have to install the key
+	then you have to enter the center location of the map with a field with this format:
+	Country;City;Street_Building
+	
+	To create your site database, you can go under utilities -> System utilities and then 'Rebuild sites table'
+	It will parse every device on your DB and look for snmp location information, then go to either googlemap or openstreet map to have all information to create the site table
+	
+	When you click on the tab MAP, it's can look empty depending of the browser, just click refresh, and you should see the map with the device on it.
+	
+	if not activate the debug and give me the output or any error message
 
 ----[ Possible Bugs?
    
