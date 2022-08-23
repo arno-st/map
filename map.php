@@ -41,7 +41,6 @@ map_log('Map gpslocation: '.print_r($gpslocation, true));
 
 map_log('get: '. print_r($_GET, true ) );
 map_log('cacti get: '. print_r($_CACTI_REQUEST, true ) );
-unset($_REQUEST["headercontent"]);
 
 		// check if extenddb is present, if so use it
 $sql_phone = '';
