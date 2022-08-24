@@ -31,6 +31,7 @@ map_check_upgrade();
 /* remember these search fields in session vars so we don't have to keep passing them around */
 load_current_session_value("description", "sess_map_host", "");
 load_current_session_value("down_device", "sess_map_down", "");
+load_current_session_value("show_phone", "sess_map_phone", "");
 $mapapikey = read_config_option('map_api_key');
 $maptools = read_config_option('map_tools');
 
@@ -42,10 +43,19 @@ map_log('Map gpslocation: '.print_r($gpslocation, true));
 map_log('get: '. print_r($_GET, true ) );
 map_log('cacti get: '. print_r($_CACTI_REQUEST, true ) );
 
-		// check if extenddb is present, if so use it
+// check if extenddb is present, if so use it
 $sql_phone = '';
-if( ! db_fetch_cell("SELECT directory FROM plugin_config WHERE directory='extenddb' AND status=1") ) {
-	$sql_phone = "AND host.isPhone!='on'";
+// show_phone only
+if (!isempty_request_var('show_phone')) {
+	set_request_var('show_phone', sanitize_search_string(get_request_var("show_phone")) );
+	if( get_request_var("show_phone") == 1 ) {
+		if( db_fetch_cell("SELECT directory FROM plugin_config WHERE directory='extenddb' AND status=1") ) {
+			$sql_phone = "AND host.isPhone='on'";
+		}
+	}
+} else {
+	unset($_REQUEST["show_phone"]);
+	kill_session_var("sess_map_phone");
 }
 
 $sql_where  = '';
@@ -74,10 +84,11 @@ if (!isempty_request_var('description') ) {
 
 $sql_query = "SELECT host.id as 'id', 
 		host.description as 'description', host.hostname as 'hostname', sites.latitude as 'lat', sites.longitude as 'lon', sites.address1 as 'address', host.disabled as 'disabled', host.status as 'status'
-		FROM host, sites
-		WHERE host.site_id=sites.id
+		FROM host
+		INNER JOIN sites ON host.site_id=sites.id
 		$sql_phone
 		$sql_where 
+		AND sites.id > 0
 		ORDER BY host.id
 		";
 map_log('Map query: '.$sql_query);
@@ -94,7 +105,12 @@ function applyFilterChange(objForm) {
 	strURL = 'map.php';
 	if( objForm.description.length > 0) {
 		strURL += '&description=' + objForm.description.value;
+	}
+	if( objForm.down_device.value != 0) {
 		strURL +=  '&down_device=' + objForm.down_device.value;
+	}
+	if( objForm.show_phone.value != 0) {
+		strURL +=  '&show_phone=' + objForm.show_phone.value;
 	};
 	document.location = strURL;
 }
@@ -103,11 +119,13 @@ function clearFilter() {
 	<?php
 		kill_session_var("sess_map_host");
 		kill_session_var("sess_map_down");
+		kill_session_var("sess_map_phone");
 
 		unset($_REQUEST["description"]);
 		unset($_REQUEST["down_device"]);
+		unset($_REQUEST["show_phone"]);
 	?>
-	strURL  = 'map.php?description=';
+	strURL  = 'map.php';
 	document.location = strURL;
 	}
 
@@ -137,6 +155,12 @@ html_start_box('<strong>Filters</strong>', '100%', '', '3', 'center', '');
 				</td>
 				<td width="1">
 					<input type="checkbox" name="down_device" value="1" <?php (get_request_var_request("down_device")=='1')?print " checked":print "" ?>>
+				</td>
+				<td nowrap style='white-space: nowrap;' width="1">
+					&nbsp;&nbsp;Show Phone Only:&nbsp;&nbsp;
+				</td>
+				<td width="1">
+					<input type="checkbox" name="show_phone" value="1" <?php (get_request_var_request("show_phone")=='1')?print " checked":print "" ?>>
 				</td>
 				<td nowrap style='white-space: nowrap;'>
 					<input type="submit" value="Go" title="Set/Refresh Filters">
