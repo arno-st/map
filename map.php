@@ -186,8 +186,8 @@ if( $maptools == '0' ) {
     setTimeout(function() {
     location.reload();
     }, 300000);
-
-	window.initMap = function() {
+	function initMap() {};
+	$(() => {
         var center = new google.maps.LatLng(<?php print $gpslocation_lati .",". $gpslocation_longi ?>);
         var map = new google.maps.Map(document.getElementById('map'), {
           zoom: 10,
@@ -227,7 +227,7 @@ if( $maptools == '0' ) {
 		}
 		var markerCluster = new MarkerClusterer(map, markers, clusterOptions );
 		google.maps.event.addDomListener(window, 'load', initMap);
-    }
+    })
  
 </script>
   <body>
