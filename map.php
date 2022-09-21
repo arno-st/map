@@ -182,7 +182,6 @@ if( $maptools == '0' ) {
 	?>
 
 	<script defer type="text/javascript">
-    // auto refresh every 5 minutes
     setTimeout(function() {
     location.reload();
     }, 300000);
@@ -226,7 +225,6 @@ if( $maptools == '0' ) {
 			maxZoom: 15,
 		}
 		var markerCluster = new MarkerClusterer(map, markers, clusterOptions );
-		google.maps.event.addDomListener(window, 'load', initMap);
     })
  
 </script>
@@ -237,6 +235,7 @@ if( $maptools == '0' ) {
 <?php
 } else {
 //************************************************ OpenStreetMAP
+$mapapikey = read_config_option('map_api_key');
 map_log('Map location: '.$gpslocation_longi.','. $gpslocation_lati);
 ?>
 
@@ -244,7 +243,7 @@ map_log('Map location: '.$gpslocation_longi.','. $gpslocation_lati);
 <div id='map'>
 <script>
 
-	mapboxgl.accessToken = 'pk.eyJ1IjoiYXJubyIsImEiOiJjajhvbW5mcjQwNHh3MzhxdXR3Y3lrOGJ4In0.Z9KUWZsed2piLTZxwlg0Ng';
+	mapboxgl.accessToken = '<?php print $mapapikey?>'; //'pk.eyJ1IjoiYXJubyIsImEiOiJjajhvbW5mcjQwNHh3MzhxdXR3Y3lrOGJ4In0.Z9KUWZsed2piLTZxwlg0Ng';
 
     var map = new mapboxgl.Map({
 		container: 'map',
@@ -258,6 +257,8 @@ map_log('Map location: '.$gpslocation_longi.','. $gpslocation_lati);
 		closeButton: false,
 		closeOnClick: false
 	});
+	
+	map.resize();
 	
 	map.on('load', function() {
 		

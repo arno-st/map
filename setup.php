@@ -134,6 +134,7 @@ function map_header() {
 		</style>
 	
 		<script type="text/javascript" src="<?php print $config['url_path'] ?>plugins/map/markerclusterer.js"></script>
+		
 		<script async defer type="text/javascript" src="https://maps.googleapis.com/maps/api/js?<?php ($mapapikey != NULL)?print 'key='.$mapapikey."&":"" ?>callback=initMap"></script>
 	
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/OverlappingMarkerSpiderfier/1.0.3/oms.min.js"></script>
@@ -142,8 +143,8 @@ function map_header() {
 		//******************* OpenStreet Map
 ?>
 
-	<script src='https://api.tiles.mapbox.com/mapbox-gl-js/v2.6.1/mapbox-gl.js'></script>
-	<link href="https://api.tiles.mapbox.com/mapbox-gl-js/v2.6.1/mapbox-gl.css" type='text/css' rel='stylesheet'/>
+	<script src='https://api.tiles.mapbox.com/mapbox-gl-js/v2.10.0/mapbox-gl.js'></script>
+	<link href="https://api.tiles.mapbox.com/mapbox-gl-js/v2.10.0/mapbox-gl.css" type='text/css' rel='stylesheet'/>
 	
 	<style>
 		#map {   
@@ -180,9 +181,9 @@ function map_config_settings () {
 			),
 		"map_api_key" => array(
 			"friendly_name" => "API Key",
-			"description" => "This is key for google map usage.",
+			"description" => "This is key for google map or OpenStreetMap usage.",
 			"method" => "textbox",
-			"max_length" => 80,
+			"max_length" => 150,
 			"default" => ""
 			),
 		"map_center" => array(
