@@ -31,7 +31,7 @@ map_check_upgrade();
 /* remember these search fields in session vars so we don't have to keep passing them around */
 load_current_session_value("description", "sess_map_host", "");
 load_current_session_value("down_device", "sess_map_down", "");
-load_current_session_value("show_phone", "sess_map_phone", "");
+load_current_session_value("show", "sess_map_show", "");
 $mapapikey = read_config_option('map_api_key');
 $maptools = read_config_option('map_tools');
 
@@ -40,34 +40,48 @@ $gpslocation_lati = $gpslocation[0];
 $gpslocation_longi = $gpslocation[1];
 map_log('Map gpslocation: '.print_r($gpslocation, true));
 
+//map_log('server: '. print_r($_SERVER, true ) );
 map_log('get: '. print_r($_GET, true ) );
 map_log('cacti get: '. print_r($_CACTI_REQUEST, true ) );
 
+$sql_show = '';
 // check if extenddb is present, if so use it
-$sql_phone = '';
-// show_phone only
-if (!isempty_request_var('show_phone')) {
-	set_request_var('show_phone', sanitize_search_string(get_request_var("show_phone")) );
-	if( get_request_var("show_phone") == 1 ) {
-		if( db_fetch_cell("SELECT directory FROM plugin_config WHERE directory='extenddb' AND status=1") ) {
-			$sql_phone = "AND host.isPhone='on'";
+if( db_fetch_cell("SELECT directory FROM plugin_config WHERE directory='extenddb' AND status=1") ) {
+	if (!isempty_request_var('show')) {
+		set_request_var('show', sanitize_search_string(get_request_var("show")) );
+		switch ( (get_request_var("show")) )
+		{
+			case -1:
+			default:
+			break;
+			
+			case 1: // Phone only
+				$sql_show = "AND host.isPhone='on' AND host.isWifi!='on'";
+			break;
+			
+			case 2: // network only
+				$sql_show = "AND host.isPhone!='on' AND host.isWifi!='on'";
+			break;
+			
+			case 3: // Wifi only
+				$sql_show = "AND host.isWifi='on' AND host.isPhone!='on'";
+			break;
 		}
+	
+	} else {
+		unset($_REQUEST["show"]);
+		kill_session_var("sess_map_show");
 	}
-} else {
-	unset($_REQUEST["show_phone"]);
-	kill_session_var("sess_map_phone");
 }
 
 $sql_where  = '';
 // down_device only
-if (!isempty_request_var('down_device')) {
-	set_request_var('down_device', sanitize_search_string(get_request_var("down_device")) );
-	if( get_request_var("down_device") == 1 ) {
-		$sql_where .= " AND host.status = 1";
-	} 
+$down_device = get_request_var("down_device");
+if( $down_device == '' || $down_device == '0' || $down_device == NULL ) {
+	$down_device='0';
 } else {
-	unset($_REQUEST["down_device"]);
-	kill_session_var("sess_map_down");
+	$sql_where .= " AND host.status = 1";
+	$down_device='1';
 }
 
 // Description of specific device
@@ -86,7 +100,7 @@ $sql_query = "SELECT host.id as 'id',
 		host.description as 'description', host.hostname as 'hostname', sites.latitude as 'lat', sites.longitude as 'lon', sites.address1 as 'address', host.disabled as 'disabled', host.status as 'status'
 		FROM host
 		INNER JOIN sites ON host.site_id=sites.id
-		$sql_phone
+		$sql_show
 		$sql_where 
 		AND sites.id > 0
 		ORDER BY host.id
@@ -101,29 +115,15 @@ general_header();
 <script type="text/javascript">
 <!--
 
-function applyFilterChange(objForm) {
-	strURL = 'map.php';
-	if( objForm.description.length > 0) {
-		strURL += '&description=' + objForm.description.value;
-	}
-	if( objForm.down_device.value != 0) {
-		strURL +=  '&down_device=' + objForm.down_device.value;
-	}
-	if( objForm.show_phone.value != 0) {
-		strURL +=  '&show_phone=' + objForm.show_phone.value;
-	};
-	document.location = strURL;
-}
-
 function clearFilter() {
 	<?php
 		kill_session_var("sess_map_host");
 		kill_session_var("sess_map_down");
-		kill_session_var("sess_map_phone");
+		kill_session_var("sess_map_show");
 
 		unset($_REQUEST["description"]);
 		unset($_REQUEST["down_device"]);
-		unset($_REQUEST["show_phone"]);
+		unset($_REQUEST["show"]);
 	?>
 	strURL  = 'map.php';
 	document.location = strURL;
@@ -139,36 +139,44 @@ html_start_box('<strong>Filters</strong>', '100%', '', '3', 'center', '');
 
 ?>
 <meta charset="utf-8"/>
-<tr>
-<td class="noprint">
-        <form style="padding:0px;margin:0px;" name="form" method="get" action="<?php print $config['url_path'];?>plugins/map/map.php">
-		<table width="100%" cellpadding="0" cellspacing="0">
+<tr class="even">
+	<td>
+        <form id=''map' action="<?php print $config['url_path'];?>plugins/map/map.php?header=false">
+		<table cellpadding="0" cellspacing="0">
 			<tr class="noprint">
 				<td nowrap style='white-space: nowrap;' width="1">
 					&nbsp;Description :&nbsp;
 				</td>
 				<td width="1">
-					<input type="text" name="description" size="25" value="<?php print get_request_var_request("description");?>">
+					<input type="text" name="description" size="25" value="<?php print get_request_var("description");?>">
 				</td>
 				<td nowrap style='white-space: nowrap;' width="1">
-					&nbsp;&nbsp;Down device Only:&nbsp;&nbsp;
+					&nbsp;&nbsp;Down device Only:
 				</td>
 				<td width="1">
-					<input type="checkbox" name="down_device" value="1" <?php (get_request_var_request("down_device")=='1')?print " checked":print "" ?>>
+					<input type="checkbox" name="down_device" value="1" <?php ($down_device=='1')?print 'checked':print '' ?>>
 				</td>
 				<td nowrap style='white-space: nowrap;' width="1">
-					&nbsp;&nbsp;Show Phone Only:&nbsp;&nbsp;
+					&nbsp;&nbsp;Show
 				</td>
-				<td width="1">
-					<input type="checkbox" name="show_phone" value="1" <?php (get_request_var_request("show_phone")=='1')?print " checked":print "" ?>>
+				<td width="1" title="Device To View" >
+					<select name="show" id='show' >
+						<option value='-1' <?php if (get_request_var('show') == '-1') {?> selected<?php }?>>All</option>
+						<option value='1'<?php if (get_request_var('show') == '1') {?> selected<?php }?>>Phone</option>
+						<option value='2'<?php if (get_request_var('show') == '2') {?> selected<?php }?>>Network</option>
+						<option value='3'<?php if (get_request_var('show') == '3') {?> selected<?php }?>>WiFi</option>
+					</select>
 				</td>
-				<td nowrap style='white-space: nowrap;'>
+				<td nowrap style='white-space: nowrap;' width="1">
+					Devices&nbsp;&nbsp;
+				</td>
+				<td nowrap style='white-space: nowrap;' width="1">
 					<input type="submit" value="Go" title="Set/Refresh Filters">
-					<input type='button' value="Clear" id='clear' onClick='clearFilter()' title="Reset fields to defaults">
+					<input id='clear' type='button' value='<?php print __('Clear');?>' onClick='clearFilter()' title="Reset fields to defaults">
 				</td>
 			</tr>
 		</table>
-	</form>
+		</form>
 	</td>
 </tr>
 

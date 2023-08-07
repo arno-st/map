@@ -281,7 +281,7 @@ function map_setup_table () {
 function map_api_device_new( $host_id ) {
 // check valid call
 	if( !array_key_exists('disabled', $host_id ) ) {
-		map_log('Not valid call: '. print_r($host_id, true) );
+map_log('Not valid call: '. print_r($host_id, true) );
 		return $host_id;
 	}
 
@@ -405,7 +405,7 @@ function geocod_address( $snmp_location ) {
 		}
 		
 	} else {
-		map_log("Snmp location error: ".print_r($address)."\n" );
+		map_log("Snmp location error: ".print_r($address, true)."\n" );
 		$gpslocation = false;
 	}
 	return $gpslocation;
@@ -430,15 +430,23 @@ function GoogleReverGeocode ($lat, $lng ) {
 
     // response status will be 'OK', if able to geocode given address 
     if($resp['status']=='OK'){
-        // get the important data
-        $lati = $resp['results'][0]['geometry']['location']['lat'];
-        $longi = $resp['results'][0]['geometry']['location']['lng'];
-        $formatted_address = $resp['results'][0]['formatted_address'];
-
 	// location as array
-	$location = array();
-	$location = formatedJson( $resp['results'][0] );
- 
+map_log("GoogleReverGeocode: ". print_r($resp['results'], true) );
+		$location = array();
+        // get the important data
+//		if( $resp['results'][0]['types'][0] != 'plus_code' && $resp['results'][0]['types'][0] != 'premise' && !isset($resp['results'][1]) ) {
+		if( $resp['results'][0]['types'][0] != 'premise' && !isset($resp['results'][1]) ) {
+			$lati = $resp['results'][0]['geometry']['location']['lat'];
+			$longi = $resp['results'][0]['geometry']['location']['lng'];
+			$formatted_address = $resp['results'][0]['formatted_address'];
+			$location = formatedJson( $resp['results'][0] );
+		} else {
+			$lati = $resp['results'][1]['geometry']['location']['lat'];
+			$longi = $resp['results'][1]['geometry']['location']['lng'];
+			$formatted_address = $resp['results'][1]['formatted_address'];
+			$location = formatedJson( $resp['results'][1] );
+		}
+
         // verify if data is complete
         $data_arr = array();            
         if($lati && $longi && $formatted_address){
@@ -501,16 +509,23 @@ map_log('Map GoogleGeocode url: '.$url);
     $resp = json_decode($resp_json, true, 512 );
 
     // response status will be 'OK', if able to geocode given address 
-    if($resp['status']=='OK'){
- 
-        // get the important data
-        $lati = $resp['results'][0]['geometry']['location']['lat'];
-        $longi = $resp['results'][0]['geometry']['location']['lng'];
-        $formatted_address = $resp['results'][0]['formatted_address'];
-
-	// location as array
 	$location = array();
-	$location = formatedJson( $resp['results'][0] );
+    if($resp['status']=='OK'){
+        // get the important data
+		if ($resp['results'][0]['types'][0] != 'plus_code' ) {
+			// get the important data
+			$lati = $resp['results'][0]['geometry']['location']['lat'];
+			$longi = $resp['results'][0]['geometry']['location']['lng'];
+			$formatted_address = $resp['results'][0]['formatted_address'];
+			$location = formatedJson( $resp['results'][0] );
+		} else {
+			// get the important data
+			$lati = $resp['results'][1]['geometry']['location']['lat'];
+			$longi = $resp['results'][1]['geometry']['location']['lng'];
+			$formatted_address = $resp['results'][1]['formatted_address'];
+			$location = formatedJson( $resp['results'][1] );
+		}
+	// location as array
 
         // verify if data is complete
         // put the data in the array
@@ -715,6 +730,7 @@ function formatedJson( $result ) {
 	$location['country'] = " ";
 	$location['types'] = " ";
 
+map_log('formatedJson result: '. print_R($result, true) );
 	foreach ($result['address_components'] as $component) {
 
 		switch ($component['types']) {
@@ -764,7 +780,7 @@ function map_device_action_execute($action) {
                         for ($i = 0; ($i < count($selected_items)); $i++) {
 				if ($action == 'map_geocode') {
 					$dbquery = db_fetch_assoc("SELECT * FROM host WHERE id=".$selected_items[$i]);
-map_log("Rebuild Mapping: ".$selected_items[$i]." - ".print_r($dbquery[0])." - ".$dbquery[0]['description']."\n");
+map_log("Rebuild Mapping: ".$selected_items[$i]." - ".print_r($dbquery[0], true)." - ".$dbquery[0]['description']."\n");
 					BuildLocation( $dbquery[0], true );
                                 }
                         }

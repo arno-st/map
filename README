@@ -23,7 +23,7 @@
 	
 	On the Cacti Configuration page, under misc, you have a few line:
 	choose if you want to use google map or openstreet map.
-	if google map is choosen, you have to install the key
+	if google map is coosen, you have to install the key
 	then you have to enter the center location of the map with a field with this format:
 	Country;City;Street_Building
 	
@@ -32,18 +32,6 @@
 	
 	When you click on the tab MAP, it's can look empty depending of the browser, just click refresh, and you should see the map with the device on it.
 	
-	Yea it's my problem I can't solve it, each time yo go to this screen, you have to hit F5 or clear to display the map.
-
-	You also need to configure cacti to support the openstreetmap and oggle feature.
-	In configure -> Settings -> General
-	you have to fill the line 'Content-Security Alternate Sources' with the following value:
-	And the line 'Content-Security Allow Unsafe JavaScript eval() calls'
-	has to be setup to yes
-	unpkg.com *.mapbox.com *.googleapis.com *.cloudflare.com *.gstatic.com *.lausanne.ch blob:
-
-	And the plugin is using the Cacti site to match the location, so if your device hase a site location configured you should be able to see it.
-
-
 	if not activate the debug and give me the output or any error message
 
 ----[ Possible Bugs?
@@ -72,3 +60,4 @@
 1.2.10 Some correction with extenddb plugin, and the way Leaflet and google API are used
 1.3.0 Upgrade to mapbox GL instead of base mapbox JS
 1.3.1 add header hook
+1.3.2 add filter on view to remove isPhone
