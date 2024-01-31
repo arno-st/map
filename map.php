@@ -217,7 +217,7 @@ if( $maptools == '0' ) {
 ?>
 			var marker = new google.maps.Marker( {
 				position: new google.maps.LatLng(<?php print $device['lat'];?>, <?php print $device['lon'];?>),
-				title: "<?php print $device['description']. "\\n" . $device['hostname']. "\\n" . utf8_encode($device['address']);?>",
+				title: "<?php print $device['description']. "\\n" . $device['hostname']. "\\n" . mb_convert_encoding($device['address'], 'UTF-8', 'ISO-8859-1');?>",
 				icon: iconBase + '<?php if ($device['disabled'] == 'on') print 'pingrey.png'; else if ($device['status']==1) print 'pinred.png'; else if ($device['status']==2) print 'pinblue.png'; else print 'pingreen.png';?>'
 			} );
 			markers.push(marker);
